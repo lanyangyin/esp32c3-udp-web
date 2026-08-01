@@ -1,211 +1,367 @@
-# ir_commands.py - IR05T 命令处理
+# ir_commands.py - IR05T 多设备命令处理
 
 from config import (
-    get_ir_data, set_ir_data, delete_ir_data, list_ir_names,
-    is_valid_name, load_system_config, save_system_config
+    get_ir_device, set_ir_device, delete_ir_device,
+    list_ir_devices, get_ir_data, set_ir_data,
+    delete_ir_data, list_ir_data_names,
+    check_pin_conflicts,load_ir_config, save_ir_config
 )
-from util import get_used_pins, pin_release, pin_claim
+from util import pin_claim, pin_release, is_safe_name
+from ir05t import IR05T
+from constants import DEFAULT_IR_BAUDRATE, DEFAULT_IR_TIMEOUT
 
-# 此模块需要引用 IR05T 对象，由 main 注入
-ir = None
-# 改为字典，存储 设备名 -> IR05T 实例
+# 全局字典：设备名 -> IR05T 实例
 ir_instances = {}
 
 def set_ir_instances(inst_dict):
+    """由 app.py 注入已初始化的 IR 实例字典"""
     global ir_instances
     ir_instances = inst_dict
 
-def set_ir_object(ir_obj):
-    global ir
-    ir = ir_obj
+def _get_ir_obj(dev_name):
+    """获取设备实例，若不存在返回 None"""
+    return ir_instances.get(dev_name)
 
 def handle_ir05t_command(parts):
+    """
+    处理 IR05T 命令（格式见 control_config.json 中的帮助）
+    所有需要操作设备的命令都必须指定设备名。
+    """
     if len(parts) < 2:
         return "错误: 缺少子命令"
+
     subcmd = parts[1].strip().lower()
-    try:
-        if subcmd == "learn" and len(parts) >= 4 and parts[2].lower() == "save":
-            name = parts[3].strip()
-            if not name:
-                return "错误: 名称不能为空"
-            if not is_valid_name(name):
-                return "错误: 名称只能包含字母、数字和下划线"
-            print(f"[IR] 开始学习并保存到 '{name}'...")
-            data = ir.learn()
-            if data:
-                hex_str = data.hex().upper()
-                if set_ir_data(name, hex_str):
-                    return f"学习成功，数据已保存为 '{name}'，长度 {len(data)} 字节"
-                else:
-                    return "学习成功但保存失败"
-            else:
-                return "学习失败（超时或无信号）"
-        elif subcmd == "learn":
-            data = ir.learn()
-            if data:
-                return f"通用学习成功，数据长度 {len(data)} 字节"
-            else:
-                return "通用学习失败（超时或无信号）"
-        elif subcmd == "list":
-            names = list_ir_names()
-            if names:
-                return "已保存的名称列表:\n" + "\n".join(f"  {n}" for n in names)
-            else:
-                return "暂无已保存的红外数据"
-        elif subcmd == "get":
-            if len(parts) < 3:
-                return "错误: 缺少名称"
-            name = parts[2].strip()
-            hex_data = get_ir_data(name)
-            if hex_data is not None:
-                return f"名称 '{name}' 的数据:\n{hex_data}"
-            else:
-                return f"错误: 未找到名称 '{name}'"
-        elif subcmd == "send":
-            if len(parts) < 3:
-                return "错误: 缺少名称"
-            name = parts[2].strip()
-            hex_data = get_ir_data(name)
-            if hex_data is None:
-                return f"错误: 未找到名称 '{name}'"
-            try:
-                data_bytes = bytes.fromhex(hex_data)
-                if ir.send_raw(data_bytes):
-                    return f"成功发射 '{name}' 红外信号"
-                else:
-                    return f"发射 '{name}' 失败"
-            except ValueError:
-                return f"错误: 名称 '{name}' 的数据格式无效"
-        elif subcmd == "delete":
-            if len(parts) < 3:
-                return "错误: 缺少名称"
-            name = parts[2].strip()
-            if delete_ir_data(name):
-                return f"已删除名称 '{name}'"
-            else:
-                return f"错误: 未找到名称 '{name}'"
-        elif subcmd == "learn_channel":
-            if len(parts) < 3:
-                return "错误: 缺少通道号"
-            try:
-                channel = int(parts[2])
-            except:
-                return "错误: 通道号必须是数字"
-            if ir.learn_channel(channel):
-                return f"通道 {channel} 已进入学习状态，请按下遥控器"
-            else:
-                return f"通道 {channel} 学习启动失败"
-        elif subcmd == "send_channel":
-            if len(parts) < 3:
-                return "错误: 缺少通道号"
-            try:
-                channel = int(parts[2])
-            except:
-                return "错误: 通道号必须是数字"
-            if ir.send_channel(channel):
-                return f"通道 {channel} 发射成功"
-            else:
-                return f"通道 {channel} 发射失败"
-        elif subcmd == "send_raw":
-            if len(parts) < 3:
-                return "错误: 缺少十六进制数据"
-            hex_str = parts[2].strip().replace(" ", "")
-            try:
-                data = bytes.fromhex(hex_str)
-                if ir.send_raw(data):
-                    return "原始数据发射成功"
-                else:
-                    return "原始数据发射失败"
-            except ValueError:
-                return "错误: 无效的十六进制数据"
-        elif subcmd == "set_baud":
-            if len(parts) < 3:
-                return "错误: 缺少波特率"
-            try:
-                baud = int(parts[2])
-            except:
-                return "错误: 波特率必须是整数"
-            if ir.set_baudrate(baud):
-                return f"波特率已修改为 {baud}，下次上电生效"
-            else:
-                return "修改波特率失败"
-        elif subcmd == "set_header":
-            if len(parts) < 3:
-                return "错误: 缺少帧头字节"
-            try:
-                header_byte = int(parts[2], 16)
-            except:
-                return "错误: 帧头必须是十六进制数"
-            if ir.set_frame_header(header_byte):
-                return f"帧头已修改为 0x{header_byte:02X}，后续指令需使用新帧头"
-            else:
-                return "修改帧头失败"
-        elif subcmd == "set_timeout":
-            if len(parts) < 3:
-                return "错误: 缺少超时时间（毫秒）"
-            try:
-                timeout_ms = int(parts[2])
-                if timeout_ms < 100:
-                    return "错误: 超时时间至少为 100ms"
-            except ValueError:
-                return "错误: 超时时间必须是整数"
-            ir.set_timeout(timeout_ms)
-            return f"IR 读取超时已设为 {timeout_ms}ms（立即生效）"
-        # ---------- set_tx ----------
-        elif subcmd == "set_tx":
-            if len(parts) < 3:
-                return "错误: 缺少引脚号"
-            try:
-                new_pin = int(parts[2])
-            except:
-                return "错误: 引脚号必须是整数"
-            # 1. 获取当前配置中的旧引脚
-            sys_cfg = load_system_config()
-            old_pin = sys_cfg.get("ir_tx_pin")
-            if old_pin == new_pin:
-                return f"IR TX 引脚已经是 GPIO{new_pin}"
-            # 2. 尝试申请新引脚（防止被其他外设占用）
-            ok, msg = pin_claim(new_pin, "IR05T_TX")
-            if not ok:
-                return f"错误: {msg}"
-            # 3. 保存配置（若保存失败，回滚释放新引脚）
-            sys_cfg["ir_tx_pin"] = new_pin
-            if not save_system_config(sys_cfg):
-                pin_release(new_pin)
-                return "保存系统配置失败"
-            # 4. 释放旧引脚（仅当拥有者是 IR05T_TX 时，防止误删）
-            if old_pin is not None:
-                used = get_used_pins()
-                if used.get(old_pin) == "IR05T_TX":
-                    pin_release(old_pin)
-            return f"IR TX 引脚已设置为 GPIO{new_pin}，执行 config,reload 生效"
 
-        # ---------- set_rx ----------
-        elif subcmd == "set_rx":
-            if len(parts) < 3:
-                return "错误: 缺少引脚号"
-            try:
-                new_pin = int(parts[2])
-            except:
-                return "错误: 引脚号必须是整数"
-            sys_cfg = load_system_config()
-            old_pin = sys_cfg.get("ir_rx_pin")
-            if old_pin == new_pin:
-                return f"IR RX 引脚已经是 GPIO{new_pin}"
-            ok, msg = pin_claim(new_pin, "IR05T_RX")
-            if not ok:
-                return f"错误: {msg}"
-            sys_cfg["ir_rx_pin"] = new_pin
-            if not save_system_config(sys_cfg):
-                pin_release(new_pin)
-                return "保存系统配置失败"
-            if old_pin is not None:
-                used = get_used_pins()
-                if used.get(old_pin) == "IR05T_RX":
-                    pin_release(old_pin)
+    # ---------- 设备管理命令（无需设备名） ----------
+    if subcmd == "list_devices":
+        devs = list_ir_devices()
+        if not devs:
+            return "暂无 IR 设备"
+        lines = ["IR 设备列表:"]
+        for name in devs:
+            cfg = get_ir_device(name)
+            status = "已初始化" if name in ir_instances else "未初始化"
+            lines.append(f"  {name} (TX={cfg['tx_pin']}, RX={cfg['rx_pin']}) - {status}")
+        return "\n".join(lines)
 
-            return f"IR RX 引脚已设置为 GPIO{new_pin}，执行 config,reload 生效"
+    if subcmd == "add":
+        # 格式: ir05t,add,<设备名>,<tx_pin>,<rx_pin>[,<baudrate>[,<timeout>[,<uart_id>]]]
+        if len(parts) < 5:
+            return "错误: 格式 ir05t,add,<设备名>,<tx_pin>,<rx_pin>[,<baudrate>[,<timeout>[,<uart_id>]]]"
+        name = parts[2].strip()
+        try:
+            tx_pin = int(parts[3])
+            rx_pin = int(parts[4])
+            baudrate = int(parts[5]) if len(parts) > 5 else DEFAULT_IR_BAUDRATE
+            timeout = int(parts[6]) if len(parts) > 6 else DEFAULT_IR_TIMEOUT
+            uart_id = int(parts[7]) if len(parts) > 7 else 1
+        except ValueError:
+            return "错误: 参数必须是整数"
+        # 检查是否存在
+        if get_ir_device(name):
+            return f"错误: 设备 '{name}' 已存在"
+        # 检查引脚冲突
+        conflict = check_pin_conflicts(tx_pin)
+        if conflict['has_conflict']:
+            return f"错误: TX 引脚 {tx_pin} 被占用"
+        conflict = check_pin_conflicts(rx_pin)
+        if conflict['has_conflict']:
+            return f"错误: RX 引脚 {rx_pin} 被占用"
+        # 保存配置（包含 uart_id）
+        if not set_ir_device(name, tx_pin, rx_pin, baudrate, timeout, uart_id):
+            return "保存配置失败"
+        # 申请引脚
+        ok, msg = pin_claim(tx_pin, f"IR-{name}-TX")
+        if not ok:
+            delete_ir_device(name)
+            return f"错误: {msg}"
+        ok, msg = pin_claim(rx_pin, f"IR-{name}-RX")
+        if not ok:
+            pin_release(tx_pin)
+            delete_ir_device(name)
+            return f"错误: {msg}"
+        # 初始化
+        try:
+            obj = IR05T(uart_id=uart_id, tx_pin=tx_pin, rx_pin=rx_pin,
+                        baudrate=baudrate, timeout=timeout)
+            ir_instances[name] = obj
+            return f"设备 '{name}' 已添加并初始化"
+        except Exception as e:
+            pin_release(tx_pin)
+            pin_release(rx_pin)
+            delete_ir_device(name)
+            return f"初始化失败: {e}"
+    if subcmd == "set_pin":
+        if len(parts) < 5:
+            return "错误: 格式 ir05t,set_pin,<设备名>,<tx_pin>,<rx_pin>[,<uart_id>]"
+        dev_name = parts[2].strip()
+        try:
+            new_tx = int(parts[3])
+            new_rx = int(parts[4])
+            new_uart = int(parts[5]) if len(parts) > 5 else None
+        except ValueError:
+            return "错误: 引脚和 UART ID 必须是整数"
+        # 获取当前配置
+        cfg = get_ir_device(dev_name)
+        if not cfg:
+            return f"错误: 设备 '{dev_name}' 不存在"
+        old_tx = cfg['tx_pin']
+        old_rx = cfg['rx_pin']
+        old_uart = cfg.get('uart_id', 1)
+        # 检查新引脚冲突（排除自身）
+        exclude = [f"IR-{dev_name}-TX", f"IR-{dev_name}-RX"]
+        if new_tx != old_tx:
+            conflict = check_pin_conflicts(new_tx, exclude_owners=exclude)
+            if conflict['has_conflict']:
+                return f"错误: TX 引脚 {new_tx} 被占用"
+        if new_rx != old_rx:
+            conflict = check_pin_conflicts(new_rx, exclude_owners=exclude)
+            if conflict['has_conflict']:
+                return f"错误: RX 引脚 {new_rx} 被占用"
+        # 更新配置
+        cfg['tx_pin'] = new_tx
+        cfg['rx_pin'] = new_rx
+        if new_uart is not None:
+            cfg['uart_id'] = new_uart
+        # 保存配置
+        all_cfg = load_ir_config()
+        all_cfg[dev_name] = cfg
+        if not save_ir_config(all_cfg):
+            return "保存配置失败"
+        # 重新初始化
+        obj = ir_instances.pop(dev_name, None)
+        if obj:
+            try:
+                obj.deinit()
+            except:
+                pass
+        # 释放旧引脚（确保是自身占用）
+        if old_tx != new_tx:
+            pin_release(old_tx)
+        if old_rx != new_rx:
+            pin_release(old_rx)
+        # 申请新引脚
+        ok, msg = pin_claim(new_tx, f"IR-{dev_name}-TX")
+        if not ok:
+            return f"错误: {msg}"
+        ok, msg = pin_claim(new_rx, f"IR-{dev_name}-RX")
+        if not ok:
+            pin_release(new_tx)
+            return f"错误: {msg}"
+        # 创建新实例
+        baudrate = cfg.get('baudrate', DEFAULT_IR_BAUDRATE)
+        timeout = cfg.get('timeout', DEFAULT_IR_TIMEOUT)
+        uart_id = cfg.get('uart_id', 1)
+        try:
+            new_obj = IR05T(uart_id=uart_id, tx_pin=new_tx, rx_pin=new_rx,
+                            baudrate=baudrate, timeout=timeout)
+            ir_instances[dev_name] = new_obj
+            return f"设备 '{dev_name}' 引脚已更新并重新初始化"
+        except Exception as e:
+            pin_release(new_tx)
+            pin_release(new_rx)
+            return f"初始化失败: {e}"
+    if subcmd == "delete":
+        if len(parts) < 3:
+            return "错误: 缺少设备名"
+        name = parts[2].strip()
+        if not get_ir_device(name):
+            return f"错误: 设备 '{name}' 不存在"
+        # 释放实例和引脚
+        obj = ir_instances.pop(name, None)
+        if obj:
+            try:
+                obj.deinit()
+            except:
+                pass
+        cfg = get_ir_device(name)
+        if cfg:
+            pin_release(cfg['tx_pin'])
+            pin_release(cfg['rx_pin'])
+        # 删除配置
+        if delete_ir_device(name):
+            return f"设备 '{name}' 已删除"
         else:
-            return f"未知 IR05T 子命令: {subcmd}"
-    except Exception as e:
-        return f"IR05T 操作异常: {e}"
+            return "删除配置失败"
+
+    # ---------- 需要设备名的操作命令 ----------
+    if len(parts) < 3:
+        return "错误: 缺少设备名"
+    dev_name = parts[2].strip()
+    obj = _get_ir_obj(dev_name)
+    if obj is None:
+        return f"错误: 设备 '{dev_name}' 未初始化，请先添加"
+
+    # ---------- 通用学习（不保存） ----------
+    if subcmd == "learn" and (len(parts) == 3 or (len(parts) == 4 and parts[3].lower() != "save")):
+        data = obj.learn()
+        if data:
+            return f"学习成功，数据长度 {len(data)} 字节"
+        else:
+            return "学习失败（超时或无信号）"
+
+    # ---------- 学习并保存 ----------
+    if subcmd == "learn" and len(parts) >= 4 and parts[3].lower() == "save":
+        if len(parts) < 5:
+            return "错误: 缺少数据名，格式 ir05t,learn,save,<设备名>,<数据名>"
+        data_name = parts[4].strip()
+        if not data_name:
+            return "错误: 数据名不能为空"
+        if not is_safe_name(data_name):
+            return "错误: 数据名只能包含字母、数字和下划线"
+        print(f"[IR] 设备 {dev_name} 学习并保存到 '{data_name}'...")
+        data = obj.learn()
+        if data:
+            hex_str = data.hex().upper()
+            if set_ir_data(dev_name, data_name, hex_str):
+                return f"学习成功，数据已保存为 '{data_name}'，长度 {len(data)} 字节"
+            else:
+                return "学习成功但保存失败"
+        else:
+            return "学习失败（超时或无信号）"
+
+    # ---------- 发送已保存数据 ----------
+    if subcmd == "send":
+        if len(parts) < 4:
+            return "错误: 缺少数据名"
+        data_name = parts[3].strip()
+        hex_data = get_ir_data(dev_name, data_name)
+        if hex_data is None:
+            return f"错误: 设备 '{dev_name}' 下未找到数据 '{data_name}'"
+        try:
+            data_bytes = bytes.fromhex(hex_data)
+            if obj.send_raw(data_bytes):
+                return f"成功发送 '{data_name}'"
+            else:
+                return f"发送 '{data_name}' 失败"
+        except ValueError:
+            return f"错误: 数据 '{data_name}' 格式无效"
+
+    # ---------- 列出该设备下所有数据 ----------
+    if subcmd == "list":
+        names = list_ir_data_names(dev_name)
+        if not names:
+            return f"设备 '{dev_name}' 暂无数据"
+        return f"设备 '{dev_name}' 的数据:\n" + "\n".join(f"  {n}" for n in names)
+
+    # ---------- 获取数据内容 ----------
+    if subcmd == "get":
+        if len(parts) < 4:
+            return "错误: 缺少数据名"
+        data_name = parts[3].strip()
+        hex_data = get_ir_data(dev_name, data_name)
+        if hex_data is None:
+            return f"错误: 未找到数据 '{data_name}'"
+        return f"数据 '{data_name}':\n{hex_data}"
+
+    # ---------- 删除数据 ----------
+    if subcmd == "delete_data":
+        if len(parts) < 4:
+            return "错误: 缺少数据名"
+        data_name = parts[3].strip()
+        if delete_ir_data(dev_name, data_name):
+            return f"数据 '{data_name}' 已删除"
+        else:
+            return f"错误: 未找到数据 '{data_name}'"
+
+    # ---------- 通道学习 ----------
+    if subcmd == "learn_channel":
+        if len(parts) < 4:
+            return "错误: 缺少通道号"
+        try:
+            ch = int(parts[3])
+            if not 1 <= ch <= 5:
+                raise ValueError
+        except ValueError:
+            return "错误: 通道号必须是 1~5"
+        if obj.learn_channel(ch):
+            return f"通道 {ch} 学习已启动，请按遥控器"
+        else:
+            return f"通道 {ch} 学习启动失败"
+
+    # ---------- 发送通道 ----------
+    if subcmd == "send_channel":
+        if len(parts) < 4:
+            return "错误: 缺少通道号"
+        try:
+            ch = int(parts[3])
+            if not 1 <= ch <= 5:
+                raise ValueError
+        except ValueError:
+            return "错误: 通道号必须是 1~5"
+        if obj.send_channel(ch):
+            return f"通道 {ch} 发送成功"
+        else:
+            return f"通道 {ch} 发送失败"
+
+    # ---------- 发送原始数据 ----------
+    if subcmd == "send_raw":
+        if len(parts) < 4:
+            return "错误: 缺少十六进制数据"
+        hex_str = parts[3].strip().replace(" ", "")
+        try:
+            data = bytes.fromhex(hex_str)
+            if obj.send_raw(data):
+                return "原始数据发送成功"
+            else:
+                return "原始数据发送失败"
+        except ValueError:
+            return "错误: 无效的十六进制数据"
+
+    # ---------- 设置波特率 ----------
+    if subcmd == "set_baud":
+        if len(parts) < 4:
+            return "错误: 缺少波特率"
+        try:
+            baud = int(parts[3])
+        except ValueError:
+            return "错误: 波特率必须是整数"
+        # 修改硬件
+        if obj.set_baudrate(baud):
+            # 更新配置
+            cfg = get_ir_device(dev_name)
+            if cfg:
+                cfg['baudrate'] = baud
+                # 保存配置（需要加载全部并保存，简单起见用 save_ir_config 全量写回）
+                all_cfg = load_ir_config()
+                all_cfg[dev_name]['baudrate'] = baud
+                save_ir_config(all_cfg)
+            return f"波特率已设为 {baud}（已生效，下次上电仍保持）"
+        else:
+            return "修改波特率失败"
+
+    # ---------- 设置超时 ----------
+    if subcmd == "set_timeout":
+        if len(parts) < 4:
+            return "错误: 缺少超时时间（毫秒）"
+        try:
+            timeout_ms = int(parts[3])
+            if timeout_ms < 100:
+                return "错误: 超时至少为 100ms"
+        except ValueError:
+            return "错误: 超时必须是整数"
+        obj.set_timeout(timeout_ms)
+        # 更新配置
+        cfg = get_ir_device(dev_name)
+        if cfg:
+            cfg['timeout'] = timeout_ms
+            all_cfg = load_ir_config()
+            all_cfg[dev_name]['timeout'] = timeout_ms
+            save_ir_config(all_cfg)
+        return f"超时已设为 {timeout_ms}ms"
+
+    # ---------- 设置帧头 ----------
+    if subcmd == "set_header":
+        if len(parts) < 4:
+            return "错误: 缺少帧头字节（十六进制）"
+        try:
+            header = int(parts[3], 16)
+        except ValueError:
+            return "错误: 帧头必须是十六进制数"
+        if obj.set_frame_header(header):
+            return f"帧头已设为 0x{header:02X}"
+        else:
+            return "设置帧头失败"
+
+    # ---------- 未知子命令 ----------
+    return f"未知 IR05T 子命令: {subcmd}"

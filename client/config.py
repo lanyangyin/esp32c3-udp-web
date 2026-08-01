@@ -477,20 +477,22 @@ def load_control_config():
                     {"cmd": "servo,list_groups,<舵机名称>", "desc": "列出舵机的所有动作组"}
                 ],
                 "ir05t": [
-                    {"cmd": "ir05t,learn", "desc": "通用学习红外信号（返回数据长度）"},
-                    {"cmd": "ir05t,learn,save,<名称>", "desc": "学习并保存到数据文件"},
-                    {"cmd": "ir05t,list", "desc": "列出所有已保存的名称"},
-                    {"cmd": "ir05t,get,<名称>", "desc": "获取指定名称的十六进制数据"},
-                    {"cmd": "ir05t,send,<名称>", "desc": "发射指定名称的红外信号"},
-                    {"cmd": "ir05t,delete,<名称>", "desc": "删除指定名称的数据"},
-                    {"cmd": "ir05t,learn_channel,<1~5>", "desc": "指定通道学习（1~5）"},
-                    {"cmd": "ir05t,send_channel,<1~5>", "desc": "发射指定通道红外"},
-                    {"cmd": "ir05t,send_raw,<hex数据>", "desc": "发射原始红外数据（十六进制字符串）"},
-                    {"cmd": "ir05t,set_baud,<9600|4800|57600|115200>", "desc": "修改模块波特率"},
-                    {"cmd": "ir05t,set_header,<0xA0~0xFE>", "desc": "修改帧头（0xA0~0xFE）"},
-                    {"cmd": "ir05t,set_timeout,<毫秒>", "desc": "修改红外学习/读取超时时间（默认2000ms）"},
-                    {"cmd": "ir05t,set_tx,<引脚>", "desc": "修改 IR05T TX 引脚（需 reload 生效）"},
-                    {"cmd": "ir05t,set_rx,<引脚>", "desc": "修改 IR05T RX 引脚（需 reload 生效）"}
+                    {"cmd": "ir05t,list_devices", "desc": "列出所有 IR 设备"},
+                    {"cmd": "ir05t,add,<设备名>,<tx_pin>,<rx_pin>[,<baudrate>[,<timeout>]]", "desc": "添加并初始化 IR 设备"},
+                    {"cmd": "ir05t,delete,<设备名>", "desc": "删除 IR 设备"},
+                    {"cmd": "ir05t,set_pin,<设备名>,<tx_pin>,<rx_pin>", "desc": "修改设备引脚"},
+                    {"cmd": "ir05t,list,<设备名>", "desc": "列出设备下所有已学习的数据"},
+                    {"cmd": "ir05t,get,<设备名>,<数据名>", "desc": "获取指定数据内容"},
+                    {"cmd": "ir05t,learn,<设备名>", "desc": "通用学习（不保存）"},
+                    {"cmd": "ir05t,learn,save,<设备名>,<数据名>", "desc": "学习并保存数据"},
+                    {"cmd": "ir05t,send,<设备名>,<数据名>", "desc": "发送已保存的数据"},
+                    {"cmd": "ir05t,delete_data,<设备名>,<数据名>", "desc": "删除指定数据"},
+                    {"cmd": "ir05t,learn_channel,<设备名>,<1~5>", "desc": "通道学习"},
+                    {"cmd": "ir05t,send_channel,<设备名>,<1~5>", "desc": "发送通道"},
+                    {"cmd": "ir05t,send_raw,<设备名>,<hex数据>", "desc": "发送原始数据"},
+                    {"cmd": "ir05t,set_baud,<设备名>,<波特率>", "desc": "修改波特率"},
+                    {"cmd": "ir05t,set_timeout,<设备名>,<毫秒>", "desc": "修改超时"},
+                    {"cmd": "ir05t,set_header,<设备名>,<0xA0~0xFE>", "desc": "修改帧头"},
                 ],
                 "system": [
                     {"cmd": "help", "desc": "显示所有模块的帮助信息"},
@@ -588,22 +590,24 @@ def get_ir_device(name):
     cfg = load_ir_config()
     return cfg.get(name)
 
-def set_ir_device(name, tx_pin, rx_pin, baudrate=None, timeout=None):
-    """添加或更新设备配置，若 baudrate/timeout 为 None 则使用默认值"""
+def set_ir_device(name, tx_pin, rx_pin, baudrate=None, timeout=None, uart_id=None):
     if baudrate is None:
         baudrate = DEFAULT_IR_BAUDRATE
     if timeout is None:
         timeout = DEFAULT_IR_TIMEOUT
+    if uart_id is None:
+        uart_id = 1
     cfg = load_ir_config()
     if name not in cfg:
         cfg[name] = {"tx_pin": tx_pin, "rx_pin": rx_pin,
                      "baudrate": baudrate, "timeout": timeout,
-                     "data": {}}
+                     "uart_id": uart_id, "data": {}}
     else:
         cfg[name]["tx_pin"] = tx_pin
         cfg[name]["rx_pin"] = rx_pin
         cfg[name]["baudrate"] = baudrate
         cfg[name]["timeout"] = timeout
+        cfg[name]["uart_id"] = uart_id
     return save_ir_config(cfg)
 
 def delete_ir_device(name):
@@ -659,55 +663,61 @@ def list_ir_data_names(device_name):
 
 
 # =============================================================================
-# 9. IR 数据（ir05t-data-config.json）
-#    结构: {"名称": "十六进制数据字符串", ...}
+# 引脚冲突检查
 # =============================================================================
 
-def load_ir_data():
-    try:
-        with open(IR_DATA_FILE, "r") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        with open(IR_DATA_FILE, "w") as f:
-            json.dump({}, f)
-        print("[CONFIG] 已创建空 ir05t-data-config.json")
-        return {}
+def get_all_pins_from_configs():
+    """
+    遍历所有配置文件，收集所有已使用的引脚。
+    返回字典：{pin: [ (owner, type), ... ]}
+    """
+    pins_info = {}
+    # 舵机配置
+    servo_cfg = load_servo_config()
+    for name, cfg in servo_cfg.items():
+        pin = cfg.get('pin')
+        if pin is not None:
+            pins_info.setdefault(pin, []).append((f"舵机-{name}", "servo"))
+    # IR 配置
+    ir_cfg = load_ir_config()
+    for name, cfg in ir_cfg.items():
+        tx = cfg.get('tx_pin')
+        rx = cfg.get('rx_pin')
+        if tx is not None:
+            pins_info.setdefault(tx, []).append((f"IR-{name}-TX", "ir"))
+        if rx is not None:
+            pins_info.setdefault(rx, []).append((f"IR-{name}-RX", "ir"))
+    # 后续可扩展其他设备（如 LED 等，但 LED 是固定的，不纳入配置）
+    return pins_info
 
-def save_ir_data(data_dict):
-    try:
-        with open(IR_DATA_FILE, "w") as f:
-            json.dump(data_dict, f)
-        return True
-    except Exception as e:
-        print(f"[IR数据] 保存失败: {e}")
-        return False
-
-def get_ir_data(name):
-    data = load_ir_data()
-    return data.get(name)
-
-def set_ir_data(name, hex_data):
-    data = load_ir_data()
-    data[name] = hex_data
-    return save_ir_data(data)
-
-def delete_ir_data(name):
-    data = load_ir_data()
-    if name in data:
-        del data[name]
-        return save_ir_data(data)
-    return False
-
-def list_ir_names():
-    data = load_ir_data()
-    return list(data.keys())
-
-def is_valid_name(name):
-    """检查名称是否只包含字母、数字、下划线"""
-    for c in name:
-        if not ((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_'):
-            return False
-    return True
+def check_pin_conflicts(pin=None, exclude_owners=None):
+    """
+    检查所有引脚冲突情况。
+    如果指定 pin，则检查该引脚是否被其他设备占用。
+    exclude_owners: 要排除的 owner 列表（字符串），这些 owner 视为不冲突。
+    返回字典：
+        conflicts: {pin: [owners]}   # 存在冲突的引脚
+        has_conflict: bool
+        pin_info: {pin: [owners]}   # 所有引脚信息
+    """
+    pins_info = get_all_pins_from_configs()
+    conflicts = {}
+    for p, owners in pins_info.items():
+        # 如果指定了排除列表，过滤掉这些 owner
+        filtered = [o for o in owners if o[0] not in (exclude_owners or [])]
+        if len(filtered) > 0:
+            conflicts[p] = filtered
+    if pin is not None:
+        # 检查该 pin 是否在冲突中
+        if pin in conflicts:
+            return {'conflicts': {pin: conflicts[pin]}, 'has_conflict': True, 'pin_info': pins_info}
+        elif pin in pins_info:
+            # 被占用但无冲突（只有一个 owner 或排除后只剩一个）
+            return {'conflicts': {}, 'has_conflict': False, 'pin_info': pins_info}
+        else:
+            return {'conflicts': {}, 'has_conflict': False, 'pin_info': pins_info}
+    else:
+        return {'conflicts': conflicts, 'has_conflict': bool(conflicts), 'pin_info': pins_info}
 
 
 # =============================================================================

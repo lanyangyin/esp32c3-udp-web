@@ -7,7 +7,7 @@ from constants import (
     FRAGMENT_CACHE_TIMEOUT,
     FRAGMENT_MAX_BYTES,
     FRAGMENT_DEFAULT_TTL,
-    FRAGMENT_MAX_CACHE_SIZE
+    FRAGMENT_MAX_CACHE_SIZE, DEBUG_FRAGMENT
 )
 
 _frag_cache = {}
@@ -45,14 +45,17 @@ def _split_utf8_bytes(text, max_bytes, punctuation):
     loop_count = 0
     while start < total:
         loop_count += 1
-        print(f"[分片] 循环 {loop_count}: start={start}, total={total}")
+        if DEBUG_FRAGMENT:
+            print(f"[分片] 循环 {loop_count}: start={start}, total={total}")
         end = min(start + max_bytes, total)
-        print(f"  初始 end={end}")
+        if DEBUG_FRAGMENT:
+            print(f"  初始 end={end}")
 
         # 回退避免截断多字节字符
         while end > start and end < len(data) and (data[end] & 0xC0) == 0x80:
             end -= 1
-        print(f"  边界回退后 end={end}")
+        if DEBUG_FRAGMENT:
+            print(f"  边界回退后 end={end}")
 
         if end < total:
             # 修改这里：errors='ignore' → 'ignore' 作为位置参数
@@ -66,15 +69,18 @@ def _split_utf8_bytes(text, max_bytes, punctuation):
                 new_end = start + len(segment[:last_punct_pos + 1].encode('utf-8'))
                 if new_end > start:
                     end = new_end
-            print(f"  标点调整后 end={end}")
+            if DEBUG_FRAGMENT:
+                print(f"  标点调整后 end={end}")
 
         if end == start:
             end = min(start + 1, total)
-            print(f"  强制推进 end={end}")
+            if DEBUG_FRAGMENT:
+                print(f"  强制推进 end={end}")
 
         frag = data[start:end].decode('utf-8')
         fragments.append(frag)
-        print(f"  添加片段长度={len(frag.encode('utf-8'))}, 片段内容='{frag[:50]}'")
+        if DEBUG_FRAGMENT:
+            print(f"  添加片段长度={len(frag.encode('utf-8'))}, 片段内容='{frag[:50]}'")
         start = end
 
     print(f"[分片] 最终共 {len(fragments)} 片")
@@ -107,7 +113,8 @@ def send_udp_fragmented(target_ip, port, src_mac, dst_mac, content,
     """
     # ===== 调试打印 =====
     print(f"[UDP] send_udp_fragmented 调用: tag={tag}, dst_mac={dst_mac}")
-    print(f"[UDP] content 类型: {type(content)}, 内容: {content if isinstance(content, str) else repr(content)[:100]}")
+    if DEBUG_FRAGMENT:
+        print(f"[UDP] content 类型: {type(content)}, 内容: {content if isinstance(content, str) else repr(content)[:100]}")
 
     # ---------- 类型防御 ----------
     if content is None:

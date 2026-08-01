@@ -4,7 +4,7 @@
 
 import time
 from machine import Timer
-from config import load_servo_config, save_servo_config, load_system_config, save_system_config
+from config import load_servo_config, save_servo_config, load_system_config, save_system_config, check_pin_conflicts
 from util import get_used_pins, pin_claim, pin_release
 
 # ---------- 异步播放状态 ----------
@@ -135,12 +135,13 @@ def handle_servo_command(parts):
                 old_pin = servo_config[name].get("pin")
             if old_pin == new_pin:
                 return f"舵机 '{name}' 已经是 GPIO{new_pin}"
-            # 额外硬件冲突检查（IR 等）
-            sys_cfg = load_system_config()
-            ir_tx = sys_cfg.get("ir_tx_pin", 5)
-            ir_rx = sys_cfg.get("ir_rx_pin", 3)
-            if new_pin == ir_tx or new_pin == ir_rx:
-                return f"错误: 引脚 GPIO{new_pin} 被 IR05T 占用 (TX={ir_tx}, RX={ir_rx})"
+            # 检查引脚冲突（静态配置），排除自身
+            conflict_info = check_pin_conflicts(new_pin, exclude_owners=[f"舵机-{name}"])
+            if conflict_info['has_conflict']:
+                # 提取冲突详情
+                for p, owners in conflict_info['conflicts'].items():
+                    owner_str = ', '.join([f"{o[0]}({o[1]})" for o in owners])
+                    return f"错误: GPIO{p} 已被占用: {owner_str}"
             # 1. 尝试申请新引脚
             ok, msg = pin_claim(new_pin, f"舵机-{name}")
             if not ok:

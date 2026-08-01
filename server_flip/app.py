@@ -39,27 +39,26 @@ def main():
     else:
         led = LEDController(pin=led_pin)
         print(f"[INIT] LED 控制器已初始化，引脚 GPIO{led_pin}")
-        led.blink_once(3)
+        led.blink_once(3)   # 启动闪烁一次
 
     # 启动 AP
     ap_ip = wifi.start_ap()
-
-    # LED 闪烁测试
-    print("[INIT] 启动测试: LED 闪烁 3 次")
-    led.blink_once(3)
 
     # 连接 STA（若配置）
     ssid, password = config.load_wifi_config()
     if ssid:
         if wifi.connect_wifi(ssid, password, timeout=config.g_sta_timeout):
-            led.on()
+            if led:
+                led.on()
             print("[MAIN] Wi-Fi 已连接，LED 常亮")
         else:
             print("[MAIN] Wi-Fi 连接失败，保留配置，进入配置模式")
-            led.off()
+            if led:
+                led.off()
     else:
         print("[MAIN] 无有效 STA 配置，进入配置模式")
-        led.off()
+        if led:
+            led.off()
 
 
     # 启动 UDP 接收线程
@@ -68,20 +67,12 @@ def main():
     except Exception as e:
         print(f"[UDP] 接收线程启动失败: {e}")
 
-    # # 启动 邻居路由 扩散线程
-    # try:
-    #     _thread.start_new_thread(udp.neighbor_routing_diffusion, ())
-    # except Exception as e:
-    #     print(f"[UDP] 邻居路由 扩散线程启动失败: {e}")
 
     # 创建 Web 应用并注册路由
     app = EasyWeb()
     web_routes.setup_routes(app)
 
-    print("[HTTP] 启动服务器，监听 0.0.0.0:80")
-    print(f"[HTTP] 请访问 http://{ap_ip}")
-
-    # 可选：强制垃圾回收，释放碎片
+    # 强制垃圾回收
     gc.collect()
 
     try:

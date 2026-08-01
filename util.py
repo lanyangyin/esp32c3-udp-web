@@ -71,6 +71,26 @@ def get_default_nickname():
     mac = get_self_mac()
     return mac.replace(':', '').lower()
 
+def is_british_safe_name(name):
+    """检查名称是否只包含字母、数字、下划线"""
+    for c in name:
+        if not ((c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or (c >= '0' and c <= '9') or c == '_'):
+            return False
+    return True
+
+def is_safe_name(name):
+    """
+    检查名称是否安全：
+    - 允许 字母、中文、数字、下划线
+    - 排除逗号、引号、换行符、管道符等命令/JSON 敏感字符
+    """
+    forbidden = {',', '"', "'", '\n', '\r', '|', ';'}
+    for ch in name:
+        if ch in forbidden:
+            return False
+    return True
+
+
 # =============================================================================
 # 引脚占用管理
 # =============================================================================

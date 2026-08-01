@@ -108,13 +108,13 @@ def udp_receiver():
                 fragment_protocol.clean_frag_cache()
                 last_clean = now
             # 定期广播邻居请求回复（携带昵称）
-            if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(-3, 3)):
+            if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(0, 3)):
                 neighbor.ttl_decrement_neighbors()
                 send_neighbor_advertise_both()
                 last_advertise_time = now
                 gc.collect()
             # 定期广播路由通告
-            if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(-10, 5)):
+            if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 5)):
                 route.route_ttl_decrement()
                 send_route_advertise_both()
                 last_route_advertise_time = now
