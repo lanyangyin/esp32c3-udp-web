@@ -7,6 +7,8 @@ from udp_sender import send_response
 
 from info_commands import get_help_info, get_status_info, get_memory_info
 from config_commands import handle_config_command
+from ap_commands import handle_ap_command
+from sta_commands import handle_sta_command
 from servo_commands import handle_servo_command
 from ir_commands import handle_ir05t_command
 from route_commands import handle_route_command
@@ -26,6 +28,14 @@ def custom_udp_processing(payload, sender_ip, dst_mac="00:00:00:00:00:00", direc
         send_response(f"Hello {dst_mac}", sender_ip, dst_mac, direct_transmission)
     elif lower == "help":
         send_response(get_help_info(include_config=True), sender_ip, dst_mac, direct_transmission)
+    elif lower.startswith("ap"):
+        parts = payload.split(',')
+        response = handle_ap_command(parts)
+        send_response(response, sender_ip, dst_mac, direct_transmission)
+    elif lower.startswith("sta"):
+        parts = payload.split(',')
+        response = handle_sta_command(parts)
+        send_response(response, sender_ip, dst_mac, direct_transmission)
     elif lower == "servo,help":
         send_response(get_help_info("servo"), sender_ip, dst_mac, direct_transmission)
     elif lower == "ir05t,help":

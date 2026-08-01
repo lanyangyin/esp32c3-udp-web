@@ -37,8 +37,7 @@ button.danger:hover { background: #d32f2f; }
   <h3>LED 引脚配置</h3>
   <label>引脚号: <input type="number" id="led_pin_new" min="0" max="21"></label>
   <button onclick="setLedPin()">设置（需重启）</button>
-  <div class="example">示例: /api/set_led_pin?pin=8</div>
-  <br>
+  <br><br>
   <button onclick="getLedPin()">获取当前引脚</button>
   <span id="ledPinDisplay" style="margin-left: 10px;"></span>
   <div class="example">API: /api/get_led_pin</div>
@@ -93,8 +92,7 @@ function rebootDevice() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-// 页面加载自动获取引脚
-getLedPin();
+// 取消自动加载
 </script>
 </body>
 </html>

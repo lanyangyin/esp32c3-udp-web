@@ -52,6 +52,8 @@ button.danger:hover { background: #d32f2f; }
   <h3>STA 连接超时</h3>
   <label>超时(秒): <input type="number" id="sta_timeout_new" min="5" value="60"></label>
   <button onclick="setStaTimeout()">设置</button>
+  <br><br>
+  <button onclick="getStaTimeout()">获取当前超时</button>
   <div class="example">示例: /api/set_sta_timeout?value=30</div>
 </div>
 
@@ -96,16 +98,6 @@ function setStaTimeout() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-function loadStaConfig() {
-    fetch('/api/get_sta_ssid_password')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('sta_ssid_new').value = data.ssid || '';
-            document.getElementById('sta_password_new').value = data.password || '';
-        })
-        .catch(err => console.error('获取STA配置失败:', err));
-}
-
 function getStaTimeout() {
     fetch('/api/get_sta_timeout')
         .then(res => res.json())
@@ -114,9 +106,8 @@ function getStaTimeout() {
         })
         .catch(err => console.error('获取STA超时失败:', err));
 }
-// 在页面加载时调用
-getStaTimeout();
-loadStaConfig();
+
+// 取消自动加载
 </script>
 </body>
 </html>

@@ -115,6 +115,11 @@ def main():
             pin_release(pin)
     set_servo_controllers(servo_controllers)
 
+    # 启动 UDP 邻居路由回复线程
+    try:
+        _thread.start_new_thread(udp.udp_neighbor_routing_reply, ())
+    except Exception as e:
+        print(f"[UDP] 接收线程启动失败: {e}")
     # 强制垃圾回收
     gc.collect()
 

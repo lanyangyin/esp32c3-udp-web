@@ -52,6 +52,8 @@ button.danger:hover { background: #d32f2f; }
   <h3>AP 网段设置（IP倒数第二段）</h3>
   <label>新网段（如 192.168.<b>5</b>.1）: <input type="number" id="ap_net_segment" min="0" max="255" value="4"></label>
   <button onclick="setApNetSegment()">设置网段（需重启）</button>
+  <br><br>
+  <button onclick="loadApNetSegment()">获取当前网段</button>
   <div class="example">示例: /api/set_ap_net_segment?segment=5</div>
 </div>
 
@@ -110,16 +112,6 @@ function resetApConfig() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-function loadApConfig() {
-    fetch('/api/get_ap_ssid_password')
-        .then(res => res.json())
-        .then(data => {
-            document.getElementById('ap_ssid_new').value = data.ssid || '';
-            document.getElementById('ap_password_new').value = data.password || '';
-        })
-        .catch(err => console.error('获取AP配置失败:', err));
-}
-
 function loadApNetSegment() {
     fetch('/api/get_ap_status')
         .then(res => res.json())
@@ -137,10 +129,7 @@ function loadApNetSegment() {
         .catch(err => console.error('获取AP状态失败:', err));
 }
 
-// 页面加载时调用
-loadApConfig();
-loadApNetSegment();   // 新增
-
+// 不再自动加载
 </script>
 </body>
 </html>

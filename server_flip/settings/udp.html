@@ -35,8 +35,10 @@ button.danger:hover { background: #d32f2f; }
 
 <div class="section">
   <h3>UDP 接收端口</h3>
-  <label>端口号: <input type="number" id="udp_recv_port_new" min="1" max="65535" value="8889"></label>
+  <label>端口号: <input type="number" id="udp_recv_port_new" min="1" max="65535" value="8888"></label>
   <button onclick="setUdpRecvPort()">设置（需重启）</button>
+  <br><br>
+  <button onclick="getUdpRecvPort()">获取当前端口</button>
   <div class="example">示例: /api/set_udp_recv_port?port=8889</div>
 </div>
 
@@ -44,6 +46,8 @@ button.danger:hover { background: #d32f2f; }
   <h3>UDP 广播/单播目标端口</h3>
   <label>端口号: <input type="number" id="udp_broadcast_port_new" min="1" max="65535" value="8888"></label>
   <button onclick="setUdpBroadcastPort()">设置（需重启）</button>
+  <br><br>
+  <button onclick="getUdpBroadcastPort()">获取当前端口</button>
   <div class="example">示例: /api/set_udp_broadcast_port?port=8888</div>
 </div>
 
@@ -51,6 +55,8 @@ button.danger:hover { background: #d32f2f; }
   <h3>UDP 消息轮询间隔</h3>
   <label>间隔(毫秒): <input type="number" id="poll_interval_new" min="500" value="5000"></label>
   <button onclick="setPollInterval()">设置（立即生效）</button>
+  <br><br>
+  <button onclick="getPollInterval()">获取当前间隔</button>
   <div class="example">示例: /api/set_udp_poll_interval?interval=5000</div>
 </div>
 
@@ -58,6 +64,8 @@ button.danger:hover { background: #d32f2f; }
   <h3>UDP 最大消息条数</h3>
   <label>条数: <input type="number" id="max_messages_new" min="1" value="5"></label>
   <button onclick="setMaxMessages()">设置（立即生效）</button>
+  <br><br>
+  <button onclick="getMaxUdpMessages()">获取当前条数</button>
   <div class="example">示例: /api/set_max_udp_messages?value=10</div>
 </div>
 
@@ -107,7 +115,7 @@ function setMaxMessages() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-// 获取 UDP 接收端口
+// 获取函数
 function getUdpRecvPort() {
     fetch('/api/get_udp_recv_port')
         .then(res => res.json())
@@ -117,7 +125,6 @@ function getUdpRecvPort() {
         .catch(err => console.error('获取UDP接收端口失败:', err));
 }
 
-// 获取 UDP 目标端口
 function getUdpBroadcastPort() {
     fetch('/api/get_udp_broadcast_port')
         .then(res => res.json())
@@ -144,11 +151,8 @@ function getMaxUdpMessages() {
         })
         .catch(err => console.error('获取最大消息数失败:', err));
 }
-// 在页面加载时调用
-getMaxUdpMessages();
-getPollInterval();
-getUdpRecvPort();
-getUdpBroadcastPort();
+
+// 取消自动加载
 </script>
 </body>
 </html>

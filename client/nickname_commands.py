@@ -10,20 +10,27 @@ def handle_nickname_command(parts):
     处理 nickname 命令
     格式: nickname,set,<新昵称>
     """
-    if len(parts) < 3 or parts[1].strip().lower() != "set":
-        return "错误: 格式应为 nickname,set,<新昵称>"
+    if len(parts) < 2:
+        return "错误: 缺少子命令，可用: set, help"
 
-    new_nick = parts[2].strip()
-    if not new_nick:
-        return "错误: 昵称不能为空"
+    subcmd = parts[1].strip().lower()
 
-    # 更新全局变量
-    config.g_device_nickname = new_nick
-    # 持久化
-    sys_cfg = config.load_system_config()
-    sys_cfg["device_nickname"] = new_nick
-    if not config.save_system_config(sys_cfg):
-        return "保存配置失败"
-    # 处理冲突并更新昵称表
-    update_self_nickname()
-    return f"昵称已更新为 '{new_nick}'"
+    if subcmd == "set":
+        new_nick = parts[2].strip()
+        if not new_nick:
+            return "错误: 昵称不能为空"
+
+        # 更新全局变量
+        config.g_device_nickname = new_nick
+        # 持久化
+        sys_cfg = config.load_system_config()
+        sys_cfg["device_nickname"] = new_nick
+        if not config.save_system_config(sys_cfg):
+            return "保存配置失败"
+        # 处理冲突并更新昵称表
+        update_self_nickname()
+        return f"昵称已更新为 '{new_nick}'"
+    elif subcmd == "help":
+        return "昵称模块命令:\n  nickname,set,<新昵称> - 修改设备昵称"
+    else:
+        return f"未知 nickname 子命令: {subcmd}，可用: set, help"

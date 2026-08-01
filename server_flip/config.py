@@ -5,11 +5,13 @@ import json
 from util import mac_to_str, get_mac_short, get_default_nickname
 from constants import (
     DEFAULT_AP_IP, DEFAULT_AP_SUBNET,
+    DEFAULT_STA_SSID, DEFAULT_STA_PASSWORD, DEFAULT_AP_SSID_PREFIX,
     DEFAULT_UDP_RECV_PORT, DEFAULT_UDP_BROADCAST_PORT,
     DEFAULT_UDP_POLL_INTERVAL, DEFAULT_LED_PIN,
     DEFAULT_MAX_UDP_MESSAGES, DEFAULT_STA_TIMEOUT,
     ROUTE_TTL_MAX, ROUTE_STEP, NEIGHBOR_TTL_MAX,
-    DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL
+    DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL, DEFAULT_COMMANDS
+
 )
 
 # =============================================================================
@@ -20,12 +22,15 @@ WIFI_CONFIG_FILE = "wifi-config.json"          # STA 模式凭据
 NICKNAMES_FILE = "nicknames.json"         # 昵称表（MAC → 昵称）
 NEIGHBORS_FILE = "neighbors.json"         # 邻居表（MAC → IP）
 ROUTE_TABLE_FILE = "route_table.json"     # 路由表（MAC → {ip, ttl}）
+NEIGHBOR_CONFIG_FILE = "neighbor-config.json"
+ROUTE_CONFIG_FILE = "route-config.json"
+
 
 # =============================================================================
 # 默认系统配置
 # =============================================================================
 DEFAULT_SYSTEM_CONFIG = {
-    "ap_ssid": f"ESP32-C3-Setup-{get_mac_short()}",
+    "ap_ssid": f"{DEFAULT_AP_SSID_PREFIX}{get_mac_short()}",
     "ap_password": "",
     "ap_ip": DEFAULT_AP_IP,
     "ap_subnet": DEFAULT_AP_SUBNET,
@@ -35,15 +40,26 @@ DEFAULT_SYSTEM_CONFIG = {
     "led_pin": DEFAULT_LED_PIN,
     "max_udp_messages": DEFAULT_MAX_UDP_MESSAGES,
     "sta_timeout": DEFAULT_STA_TIMEOUT,
-    "device_nickname": get_default_nickname(),
-    "neighbor_advertise_interval": DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL,
-    "route_advertise_interval": DEFAULT_ROUTE_ADVERTISE_INTERVAL,
+    "device_nickname": get_default_nickname()
+}
+
+DEFAULT_STA_CONFIG = {
+    "ssid": DEFAULT_STA_SSID,
+    "password": DEFAULT_STA_PASSWORD
+}
+
+DEFAULT_NEIGHBOR_CONFIG = {
+    "advertise_interval": DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL,
+}
+
+DEFAULT_ROUTE_CONFIG = {
+    "advertise_interval": DEFAULT_ROUTE_ADVERTISE_INTERVAL,
 }
 
 # =============================================================================
-# 全局配置变量（由 load_global_config() 从 system-config.json 加载）
+# 全局配置变量
 # =============================================================================
-g_ap_ssid = DEFAULT_SYSTEM_CONFIG["ap_ssid"]
+g_ap_ssid = f"{DEFAULT_AP_SSID_PREFIX}{get_mac_short()}"
 g_ap_password = ""
 g_ap_ip = DEFAULT_AP_IP
 g_ap_subnet = DEFAULT_AP_SUBNET
@@ -55,13 +71,17 @@ g_udp_poll_interval = DEFAULT_UDP_POLL_INTERVAL
 g_max_udp_messages = DEFAULT_MAX_UDP_MESSAGES
 g_led_pin = DEFAULT_LED_PIN
 g_device_nickname = ""
+
+g_sta_ssid = DEFAULT_STA_SSID
+g_sta_password = DEFAULT_STA_PASSWORD
+
 g_neighbor_advertise_interval = DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL
+
 g_route_advertise_interval = DEFAULT_ROUTE_ADVERTISE_INTERVAL
 
 
-# STA 凭据全局变量（由 load_wifi_config 更新）
-g_sta_ssid = ""
-g_sta_password = ""
+# 控制配置全局变量
+g_commands = DEFAULT_COMMANDS
 
 # =============================================================================
 # WiFi 配置（STA 凭据）
@@ -71,12 +91,14 @@ g_sta_password = ""
 
 def load_wifi_config():
     """读取 WiFi 配置，更新全局 g_sta_ssid/g_sta_password，返回 (ssid, password)"""
-    global g_sta_ssid, g_sta_password
+    global  g_sta_ssid, g_sta_password
     try:
         with open(WIFI_CONFIG_FILE, "r") as f:
             data = json.load(f)
-        ssid = data.get("ssid", "")
-        password = data.get("password", "")
+        ssid = data.get("ssid", DEFAULT_STA_SSID)
+        password = data.get("password", DEFAULT_STA_PASSWORD)
+        g_sta_ssid = ssid
+        g_sta_password = password
         print(f"[CONFIG] 读取 STA 配置: SSID='{ssid}'")
         return (ssid, password) if ssid else (None, None)
     except Exception as e:
@@ -85,19 +107,17 @@ def load_wifi_config():
         password = ""
         # 创建空配置
         with open(WIFI_CONFIG_FILE, "w") as f:
-            json.dump({"ssid": "", "password": ""}, f)
-    g_sta_ssid = ssid
-    g_sta_password = password
+            json.dump(DEFAULT_STA_CONFIG, f)
     print(f"[CONFIG] STA 配置: SSID='{ssid}'")
     return ssid, password
 
 def save_wifi_config(ssid, password):
     """保存 WiFi 配置并更新全局变量"""
+    global  g_sta_ssid, g_sta_password
     try:
         data = {"ssid": ssid, "password": password}
         with open(WIFI_CONFIG_FILE, "w") as f:
             json.dump(data, f)
-        global g_sta_ssid, g_sta_password
         g_sta_ssid = ssid
         g_sta_password = password
         print(f"[CONFIG] STA 配置已保存: SSID='{ssid}'")
@@ -105,6 +125,14 @@ def save_wifi_config(ssid, password):
     except Exception as e:
         print(f"[CONFIG] 保存系统配置失败: {e}")
         return False
+
+def update_sta_timeout(new_timeout):
+    """更新 STA 连接超时并保存到配置文件"""
+    global g_sta_timeout
+    config = load_system_config()
+    config["sta_timeout"] = new_timeout
+    save_system_config(config)
+    g_sta_timeout = new_timeout
 
 def reset_wifi_config():
     """重置 WiFi 配置（清空）"""
@@ -170,13 +198,52 @@ def update_device_nickname(new_nickname):
     save_system_config(config)
     g_device_nickname = new_nickname
 
-def update_neighbor_broadcast_interval(new_interval):
-    """更新广播间隔并保存到配置文件"""
-    global g_neighbor_advertise_interval
+def update_ap_ssid(new_ssid):
+    """更新 AP SSID 并保存到配置文件"""
+    global g_ap_ssid
     config = load_system_config()
-    config["neighbor_broadcast_interval"] = new_interval
+    config["ap_ssid"] = new_ssid
     save_system_config(config)
-    g_neighbor_advertise_interval = new_interval
+    g_ap_ssid = new_ssid
+
+def update_ap_password(new_password):
+    """更新 AP 密码并保存到配置文件"""
+    global g_ap_password
+    config = load_system_config()
+    config["ap_password"] = new_password
+    save_system_config(config)
+    g_ap_password = new_password
+
+def update_ap_ip(new_ip):
+    """更新 AP IP 并保存到配置文件"""
+    global g_ap_ip, g_ap_broadcast_addr
+    config = load_system_config()
+    config["ap_ip"] = new_ip
+    save_system_config(config)
+    g_ap_ip = new_ip
+    # 重新计算广播地址
+    ip_parts = new_ip.split('.')
+    if len(ip_parts) == 4:
+        g_ap_broadcast_addr = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
+
+def update_ap_netmask(new_mask):
+    """更新 AP 子网掩码并保存到配置文件"""
+    global g_ap_subnet
+    config = load_system_config()
+    config["ap_subnet"] = new_mask
+    save_system_config(config)
+    g_ap_subnet = new_mask
+
+def update_ap_gateway(new_gw):
+    """更新 AP 网关（实际是 IP）并保存到配置文件"""
+    global g_ap_ip, g_ap_broadcast_addr
+    config = load_system_config()
+    config["ap_ip"] = new_gw
+    save_system_config(config)
+    g_ap_ip = new_gw
+    ip_parts = new_gw.split('.')
+    if len(ip_parts) == 4:
+        g_ap_broadcast_addr = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
 
 
 # =============================================================================
@@ -259,6 +326,45 @@ def ttl_decrement_neighbors():
 def reset_neighbors():
     """清空邻居表"""
     save_neighbors({})
+
+def update_neighbor_advertise_interval(interval):
+    """更新邻居广播间隔并保存"""
+    global g_neighbor_advertise_interval
+    cfg = load_neighbor_config()
+    cfg["advertise_interval"] = interval
+    save_neighbor_config(cfg)
+    g_neighbor_advertise_interval = interval
+
+
+# =============================================================================
+# 邻居配置（neighbor-config.json）
+# =============================================================================
+
+def load_neighbor_config():
+    try:
+        with open(NEIGHBOR_CONFIG_FILE, "r") as f:
+            return json.load(f)
+    except:
+        with open(NEIGHBOR_CONFIG_FILE, "w") as f:
+            json.dump(DEFAULT_NEIGHBOR_CONFIG, f)
+        return DEFAULT_NEIGHBOR_CONFIG.copy()
+
+def save_neighbor_config(cfg):
+    try:
+        with open(NEIGHBOR_CONFIG_FILE, "w") as f:
+            json.dump(cfg, f)
+        return True
+    except Exception as e:
+        print(f"[CONFIG] 保存邻居配置失败: {e}")
+        return False
+
+def update_route_advertise_interval(interval):
+    """更新路由通告间隔并保存"""
+    global g_route_advertise_interval
+    cfg = load_route_config()
+    cfg["advertise_interval"] = interval
+    save_route_config(cfg)
+    g_route_advertise_interval = interval
 
 
 # =============================================================================
@@ -403,6 +509,28 @@ def delete_route(mac):
         return True
     return False
 
+# =============================================================================
+# 路由配置（route-config.json）
+# =============================================================================
+
+def load_route_config():
+    try:
+        with open(ROUTE_CONFIG_FILE, "r") as f:
+            return json.load(f)
+    except:
+        with open(ROUTE_CONFIG_FILE, "w") as f:
+            json.dump(DEFAULT_ROUTE_CONFIG, f)
+        return DEFAULT_ROUTE_CONFIG.copy()
+
+def save_route_config(cfg):
+    try:
+        with open(ROUTE_CONFIG_FILE, "w") as f:
+            json.dump(cfg, f)
+        return True
+    except Exception as e:
+        print(f"[CONFIG] 保存路由配置失败: {e}")
+        return False
+
 
 # =============================================================================
 # 全局配置加载（将 system-config.json 同步到 g_* 变量）
@@ -424,15 +552,20 @@ def load_global_config():
     g_ap_password = config["ap_password"]
     g_ap_ip = config["ap_ip"]
     g_ap_subnet = config["ap_subnet"]
+    g_sta_timeout = config.get("sta_timeout", DEFAULT_STA_TIMEOUT)
     g_udp_recv_port = config["udp_recv_port"]
     g_udp_broadcast_port = config["udp_broadcast_port"]
-    g_udp_poll_interval = config.get("udp_poll_interval", 2000)
-    g_led_pin = config.get("led_pin", 8)
-    g_max_udp_messages = config.get("max_udp_messages", 5)
-    g_sta_timeout = config.get("sta_timeout", 60)
+    g_udp_poll_interval = config.get("udp_poll_interval", DEFAULT_UDP_POLL_INTERVAL)
+    g_led_pin = config.get("led_pin", DEFAULT_LED_PIN)
+    g_max_udp_messages = config.get("max_udp_messages", DEFAULT_MAX_UDP_MESSAGES)
     g_device_nickname = config.get("device_nickname", get_default_nickname())  # 若缺失则生成
-    g_neighbor_advertise_interval = config.get("neighbor_advertise_interval", 120)
-    g_route_advertise_interval = config.get("route_advertise_interval", 120)
+
+    # 从独立配置文件读取间隔
+    neighbor_cfg = load_neighbor_config()
+    g_neighbor_advertise_interval = neighbor_cfg.get("advertise_interval", DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL)
+
+    route_cfg = load_route_config()
+    g_route_advertise_interval = route_cfg.get("advertise_interval", DEFAULT_ROUTE_ADVERTISE_INTERVAL)
 
 
     # 根据 AP IP 计算广播地址（假设 /24）
@@ -455,7 +588,9 @@ def load_all_configs():
     load_global_config()          # 加载系统配置并更新全局变量
     load_wifi_config()            # 加载 STA 凭据
     load_neighbors()              # 加载邻居表（如缺失则返回空字典）
+    load_neighbor_config()
     load_route_table()            # 加载路由表（如缺失则返回空字典）
+    load_route_config()
     load_nicknames()              # 加载昵称表（如缺失则返回空字典）
 
     print("[CONFIG] 所有配置加载完成（缺失文件已自动创建）")

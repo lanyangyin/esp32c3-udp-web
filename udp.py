@@ -70,6 +70,39 @@ def clear_udp_messages():
     with udp_messages_lock:
         udp_messages = []
 
+# =============================================================================
+# 添加独立的邻居表路由表注册申请回复广播线程函数
+# =============================================================================
+def udp_neighbor_routing_reply():
+    last_advertise_time = time.time()
+    last_route_advertise_time = time.time()
+    while True:
+        try:
+            now = time.time()
+            # 定期广播邻居请求回复（携带昵称）
+            if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(0, 5)):
+                neighbor.ttl_decrement_neighbors()
+                send_neighbor_advertise_both()
+                last_advertise_time = now
+                gc.collect()
+            # 定期广播路由通告
+            if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 15)):
+                route.route_ttl_decrement()
+                send_route_advertise_both()
+                last_route_advertise_time = now
+                gc.collect()
+            time.sleep(1)  # 避免忙等
+        except OSError as e:
+            if hasattr(e, 'errno') and e.errno in (11, 110, 116):
+                continue
+            else:
+                print(f"[UDP] 其他OS错误: {e}")
+                time.sleep(1)
+        except Exception as e:
+            print(f"[UDP] 接收异常: {repr(e)}")
+            sys.print_exception(e)
+            time.sleep(1)
+
 
 # =============================================================================
 # UDP 服务器主循环
@@ -97,28 +130,28 @@ def udp_receiver():
     print(f"[UDP] UDP 回复端口: {config.g_udp_broadcast_port}")
 
     last_clean = time.time()
-    last_advertise_time = time.time()
-    last_route_advertise_time = time.time()
+    # last_advertise_time = time.time()
+    # last_route_advertise_time = time.time()
 
     while True:
         try:
-            # 定期清理超时分片缓存（每30秒）
+            # 定期清理超时分片缓存
             now = time.time()
             if now - last_clean > CACHE_CLEAN_INTERVAL:
                 fragment_protocol.clean_frag_cache()
                 last_clean = now
-            # 定期广播邻居请求回复（携带昵称）
-            if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(0, 3)):
-                neighbor.ttl_decrement_neighbors()
-                send_neighbor_advertise_both()
-                last_advertise_time = now
-                gc.collect()
-            # 定期广播路由通告
-            if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 5)):
-                route.route_ttl_decrement()
-                send_route_advertise_both()
-                last_route_advertise_time = now
-                gc.collect()
+            # # 定期广播邻居请求回复（携带昵称）
+            # if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(0, 3)):
+            #     neighbor.ttl_decrement_neighbors()
+            #     send_neighbor_advertise_both()
+            #     last_advertise_time = now
+            #     gc.collect()
+            # # 定期广播路由通告
+            # if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 5)):
+            #     route.route_ttl_decrement()
+            #     send_route_advertise_both()
+            #     last_route_advertise_time = now
+            #     gc.collect()
 
             readable, _, _ = select.select([recv_sock], [], [], 1.0)
             if readable:
@@ -181,11 +214,11 @@ def udp_receiver():
                     else:
                         print(f"[UDP] 邻居请求回复中无昵称")
 
-                # ---------- 邻居注册请求 ----------
-                elif tag == "邻居注册请求":
-                    print(f"[UDP] 收到邻居注册请求，来自 {src_mac}")
-                    # 1. 邻居注册请求回复
-                    send_register_reply(target_ip=sender_ip, dst_mac=src_mac)
+                # # ---------- 邻居注册请求 ----------
+                # elif tag == "邻居注册请求":
+                #     print(f"[UDP] 收到邻居注册请求，来自 {src_mac}")
+                #     # 1. 邻居注册请求回复
+                #     send_register_reply(target_ip=sender_ip, dst_mac=src_mac)
 
                 # ---------- 路由通告 ----------
                 elif tag == "路由通告":
