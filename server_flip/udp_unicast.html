@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>ESP32-C3 控制台 - UDP单播</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+h2 { margin-top: 0; }
+.section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; background: #fff; }
+input, button, textarea { padding: 8px 10px; margin: 3px 5px 3px 0; border: 1px solid #ccc; border-radius: 4px; }
+textarea { width: 100%; height: 60px; resize: vertical; font-family: inherit; }
+button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: background 0.2s; }
+button:hover { background: #45a049; }
+button.danger { background: #f44336; }
+button.danger:hover { background: #d32f2f; }
+.result { background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 100px; overflow-y: auto; font-size: 0.95em; }
+.example { color: #555; font-size: 0.9em; margin-top: 5px; background: #f5f5f5; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+.nav { background: #333; padding: 10px; color: #fff; text-align: center; }
+.nav a { color: #fff; margin: 0 10px; text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+.msg-area { background: #e8f4f8; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 0.9em; font-family: 'Courier New', monospace; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #bcd8e6; }
+@media (max-width: 600px) { input, button, textarea { width: 100%; margin: 5px 0; } .section { padding: 10px; } }
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="/">主页</a> |
+  <a href="/udp_broadcast">广播</a> |
+  <a href="/udp_unicast">单播</a> |
+  <a href="/neighbor">邻居表</a> |
+  <a href="/route">路由表</a> |
+  <a href="/settings/ap">AP设置</a> |
+  <a href="/settings/sta">STA设置</a> |
+  <a href="/settings/udp">UDP设置</a> |
+  <a href="/settings/system">系统设置</a>
+</div>
+<h2>ESP32-C3 控制台 - UDP单播</h2>
+
+<div class="section">
+  <h3>AP 单播（IP尾号）</h3>
+  <label>IP尾号: <input type="number" id="uc_ip_ap" value="3" min="1" max="254"></label>
+  <label>内容:</label>
+  <textarea id="uc_content_ap">Hello</textarea>
+  <button onclick="unicastAp()">发送</button>
+  <div class="example">示例: /api/udp_send_ap (POST JSON)</div>
+</div>
+
+<div class="section">
+  <h3>STA 单播（IP尾号）</h3>
+  <label>IP尾号: <input type="number" id="uc_ip_sta" value="3" min="1" max="254"></label>
+  <label>内容:</label>
+  <textarea id="uc_content_sta">Hello</textarea>
+  <button onclick="unicastSta()">发送</button>
+  <div class="example">示例: /api/udp_send_sta (POST JSON)</div>
+</div>
+
+<div class="section">
+  <h3>任意 IP 单播（完整IP）</h3>
+  <label>目标IP: <input type="text" id="target_ip" placeholder="192.168.8.100"></label>
+  <label>内容:</label>
+  <textarea id="send_ip_content">Hello</textarea>
+  <button onclick="sendToIp()">发送</button>
+  <div class="example">示例: /api/udp_send_ip (POST JSON)</div>
+</div>
+
+<div class="section">
+  <h3>昵称单播（需先设置昵称）</h3>
+  <label>目标昵称: <input type="text" id="send_nick" placeholder="mydevice"></label>
+  <label>内容:</label>
+  <textarea id="send_msg">Hello</textarea>
+  <button onclick="sendByNick()">发送</button>
+  <div class="example">示例: /api/send_to_nick (POST JSON)</div>
+</div>
+
+<div class="section">
+  <h3>发送路由消息</h3>
+  <label>目标MAC: <input type="text" id="route_dst_mac" placeholder="8C:FD:49:55:02:F4"></label>
+  <label>命令: <input type="text" id="route_cmd_msg" placeholder="Hello"></label>
+  <button onclick="sendRouteMsg()">发送</button>
+  <div class="example">API: /api/send_route_message (POST JSON)</div>
+</div>
+
+<div class="section">
+  <h3>UDP 消息列表</h3>
+  <div id="udpMsgList" class="msg-area">等待消息...</div>
+  <button onclick="clearUdpMsg()" style="background:#f44336;">清空</button>
+  <button onclick="refreshUdpMessages()" style="background:#2196F3;">刷新</button>
+  <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
+</div>
+
+<div class="section">
+  <h3>操作结果</h3>
+  <div id="result" class="result">等待操作...</div>
+</div>
+
+<script>
+function showResult(text) {
+    document.getElementById('result').textContent = text;
+}
+
+function fetchUdpMessages() {
+    fetch('/api/udp_messages')
+        .then(res => res.json())
+        .then(data => {
+            var container = document.getElementById('udpMsgList');
+            if (data.length === 0) {
+                container.textContent = '暂无消息';
+                return;
+            }
+            var lines = data.map(item => {
+                var timeStr = new Date(item.time * 1000).toLocaleTimeString();
+                return timeStr + ' ' + item.addr + ': ' + item.msg;
+            });
+            container.textContent = lines.join('\n\n');
+        })
+        .catch(err => console.error('获取UDP消息失败:', err));
+}
+
+function refreshUdpMessages() {
+    showResult('正在刷新...');
+    fetchUdpMessages().then(() => showResult('刷新完成'));
+}
+
+function clearUdpMsg() {
+    if (!confirm('确定清空所有UDP消息记录吗？')) return;
+    fetch('/api/clear_udp_messages')
+        .then(res => res.text())
+        .then(data => {
+            showResult('清空消息: ' + data);
+            refreshUdpMessages();
+        })
+        .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+function unicastAp() {
+    var ip_tail = document.getElementById('uc_ip_ap').value.trim();
+    var content = document.getElementById('uc_content_ap').value.trim();
+    if (!ip_tail || !content) { showResult('请输入IP尾号和内容'); return; }
+    fetch('/api/udp_send_ap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip_tail: ip_tail, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('AP单播: ' + data))
+    .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+function unicastSta() {
+    var ip_tail = document.getElementById('uc_ip_sta').value.trim();
+    var content = document.getElementById('uc_content_sta').value.trim();
+    if (!ip_tail || !content) { showResult('请输入IP尾号和内容'); return; }
+    fetch('/api/udp_send_sta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip_tail: ip_tail, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('STA单播: ' + data))
+    .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+function sendToIp() {
+    var ip = document.getElementById('target_ip').value.trim();
+    var content = document.getElementById('send_ip_content').value.trim();
+    if (!ip || !content) { showResult('请输入目标IP和内容'); return; }
+    fetch('/api/udp_send_ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: ip, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('发送到IP: ' + data))
+    .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+function sendByNick() {
+    var nickname = document.getElementById('send_nick').value.trim();
+    var content = document.getElementById('send_msg').value.trim();
+    if (!nickname || !content) { showResult('请输入昵称和消息'); return; }
+    fetch('/api/send_to_nick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nickname, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('按昵称发送: ' + data))
+    .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+var pollIntervalId = null;
+
+function initPolling() {
+    fetch('/api/get_udp_poll_interval')
+        .then(res => res.json())
+        .then(data => {
+            var interval = data.interval || 5000;
+            if (pollIntervalId) {
+                clearInterval(pollIntervalId);
+            }
+            pollIntervalId = setInterval(fetchUdpMessages, interval);
+            console.log('UDP消息刷新间隔设为', interval, '毫秒');
+        })
+        .catch(err => {
+            console.error('获取轮询间隔失败，使用默认5秒:', err);
+            if (pollIntervalId) {
+                clearInterval(pollIntervalId);
+            }
+            pollIntervalId = setInterval(fetchUdpMessages, 5000);
+        });
+}
+
+function sendRouteMsg() {
+    var mac = document.getElementById('route_dst_mac').value.trim();
+    var msg = document.getElementById('route_cmd_msg').value.trim();
+    if (!mac || !msg) { showResult('请输入MAC和命令'); return; }
+    fetch('/api/send_route_message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dst_mac: mac, cmd_msg: msg })
+    })
+    .then(res => res.text())
+    .then(data => showResult('发送路由消息: ' + data))
+    .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+// 页面加载时初始化
+initPolling();
+</script>
+</body>
+</html>

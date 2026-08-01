@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>ESP32-C3 控制台 - 主页</title>
+<style>
+* { box-sizing: border-box; }
+body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+h2 { margin-top: 0; }
+.section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; background: #fff; }
+input, button { padding: 8px 10px; margin: 3px 5px 3px 0; border: 1px solid #ccc; border-radius: 4px; }
+button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: background 0.2s; }
+button:hover { background: #45a049; }
+button.danger { background: #f44336; }
+button.danger:hover { background: #d32f2f; }
+button.small { padding: 2px 6px; font-size: 0.7rem; margin-left: 5px; background: #2196F3; }
+.result { background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 100px; overflow-y: auto; font-size: 0.95em; }
+.example { color: #555; font-size: 0.9em; margin-top: 5px; background: #f5f5f5; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+.nav { background: #333; padding: 10px; color: #fff; text-align: center; }
+.nav a { color: #fff; margin: 0 10px; text-decoration: none; }
+.nav a:hover { text-decoration: underline; }
+.status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.status-item { background: #f5f5f5; padding: 5px 10px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+.status-item span { flex: 1; }
+@media (max-width: 600px) { input, button { width: 100%; margin: 5px 0; } .section { padding: 10px; } .status-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="nav">
+  <a href="/">主页</a> |
+  <a href="/udp_broadcast">广播</a> |
+  <a href="/udp_unicast">单播</a> |
+  <a href="/neighbor">邻居表</a> |
+  <a href="/route">路由表</a> |
+  <a href="/settings/ap">AP设置</a> |
+  <a href="/settings/sta">STA设置</a> |
+  <a href="/settings/udp">UDP设置</a> |
+  <a href="/settings/system">系统设置</a>
+</div>
+<h2>ESP32-C3 控制台 - 状态总览</h2>
+<button onclick="fetchAllStatus()" style="margin-bottom:20px;">刷新所有状态</button>
+
+<div class="section">
+  <h3>系统状态</h3>
+  <div id="statusDisplay" class="status-grid">
+    <div class="status-item">AP SSID: <span id="ap_ssid">-</span><button class="small" onclick="fetchApStatus()">↻</button></div>
+    <div class="status-item">AP IP: <span id="ap_ip">-</span><button class="small" onclick="fetchApStatus()">↻</button></div>
+    <div class="status-item">STA SSID: <span id="sta_ssid">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+    <div class="status-item">STA IP: <span id="sta_ip">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+    <div class="status-item">STA 连接状态: <span id="sta_connected">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+    <div class="status-item">STA 超时: <span id="sta_timeout">-</span>s<button class="small" onclick="fetchStaTimeout()">↻</button></div>
+    <div class="status-item">UDP 接收端口: <span id="udp_recv_port">-</span><button class="small" onclick="fetchUdpRecvPort()">↻</button></div>
+    <div class="status-item">UDP 目标端口: <span id="udp_broadcast_port">-</span><button class="small" onclick="fetchUdpBroadcastPort()">↻</button></div>
+    <div class="status-item">UDP 轮询间隔: <span id="poll_interval">-</span>ms<button class="small" onclick="fetchPollInterval()">↻</button></div>
+    <div class="status-item">UDP 最大消息数: <span id="max_messages">-</span><button class="small" onclick="fetchMaxMessages()">↻</button></div>
+    <div class="status-item">LED 引脚: <span id="led_pin">-</span><button class="small" onclick="fetchLedPin()">↻</button></div>
+    <div class="status-item">LED 状态: <span id="led_status">-</span><button class="small" onclick="fetchLedStatus()">↻</button></div>
+    <div class="status-item">内存占用: <span id="memory_usage">-</span><button class="small" onclick="fetchMemory()">↻</button></div>
+    <div class="status-item">自身 MAC: <span id="self_mac">-</span><button class="small" onclick="fetchSelfMac()">↻</button></div>
+  </div>
+  <div class="example">
+    状态 API 示例：
+    /api/get_ap_status, /api/get_sta_status, /api/get_sta_timeout,
+    /api/get_udp_recv_port, /api/get_udp_broadcast_port,
+    /api/get_udp_poll_interval, /api/get_max_udp_messages,
+    /api/get_led_pin, /api/get_led_status, /api/memory
+  </div>
+</div>
+
+<div class="section">
+  <h3>连接设备（仅显示）</h3>
+  <button onclick="showConnectedMacs()">扫描并显示</button>
+  <pre id="connectedMacs" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px; max-height:150px; overflow-y:auto;"></pre>
+  <div class="example">API: /api/get_macs</div>
+</div>
+
+<div class="section">
+  <h3>已记录昵称</h3>
+  <button onclick="showNicknames()">显示所有昵称</button>
+  <pre id="nicknameList" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px; max-height:150px; overflow-y:auto;"></pre>
+  <div class="example">API: /api/get_nicknames</div>
+</div>
+
+<div class="section">
+  <h3>操作结果</h3>
+  <div id="result" class="result">等待操作...</div>
+</div>
+
+<script>
+function showResult(text) {
+    document.getElementById('result').textContent = text;
+}
+
+// ----- 独立刷新函数 -----
+function fetchApStatus() {
+    fetch('/api/get_ap_status')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('ap_ssid').textContent = data.ssid || '-';
+            document.getElementById('ap_ip').textContent = data.ip || '-';
+        })
+        .catch(() => {});
+}
+function fetchStaStatus() {
+    fetch('/api/get_sta_status')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('sta_ssid').textContent = data.ssid || '-';
+            document.getElementById('sta_ip').textContent = data.ip || '-';
+            document.getElementById('sta_connected').textContent = data.connected ? '已连接' : '未连接';
+        })
+        .catch(() => {});
+}
+function fetchStaTimeout() {
+    fetch('/api/get_sta_timeout')
+        .then(res => res.json())
+        .then(data => { document.getElementById('sta_timeout').textContent = data.value || '-'; })
+        .catch(() => {});
+}
+function fetchUdpRecvPort() {
+    fetch('/api/get_udp_recv_port')
+        .then(res => res.json())
+        .then(data => { document.getElementById('udp_recv_port').textContent = data.value || '-'; })
+        .catch(() => {});
+}
+function fetchUdpBroadcastPort() {
+    fetch('/api/get_udp_broadcast_port')
+        .then(res => res.json())
+        .then(data => { document.getElementById('udp_broadcast_port').textContent = data.value || '-'; })
+        .catch(() => {});
+}
+function fetchPollInterval() {
+    fetch('/api/get_udp_poll_interval')
+        .then(res => res.json())
+        .then(data => { document.getElementById('poll_interval').textContent = data.interval || '-'; })
+        .catch(() => {});
+}
+function fetchMaxMessages() {
+    fetch('/api/get_max_udp_messages')
+        .then(res => res.json())
+        .then(data => { document.getElementById('max_messages').textContent = data.value || '-'; })
+        .catch(() => {});
+}
+function fetchLedPin() {
+    fetch('/api/get_led_pin')
+        .then(res => res.json())
+        .then(data => { document.getElementById('led_pin').textContent = data.pin || '-'; })
+        .catch(() => {});
+}
+function fetchLedStatus() {
+    fetch('/api/get_led_status')
+        .then(res => res.json())
+        .then(data => { document.getElementById('led_status').textContent = data.status || '-'; })
+        .catch(() => {});
+}
+function fetchMemory() {
+    fetch('/api/memory')
+        .then(res => res.json())
+        .then(data => {
+            var used = data.used || 0;
+            var total = data.total || 1;
+            var percent = (used/total*100).toFixed(1);
+            document.getElementById('memory_usage').textContent = used + '/' + total + ' (' + percent + '%)';
+        })
+        .catch(() => {});
+}
+function fetchSelfMac() {
+    fetch('/api/get_self_mac')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('self_mac').textContent = data.mac || '-';
+        })
+        .catch(() => {});
+}
+
+// 刷新所有
+function fetchAllStatus() {
+    fetchApStatus();
+    fetchStaStatus();
+    fetchStaTimeout();
+    fetchUdpRecvPort();
+    fetchUdpBroadcastPort();
+    fetchPollInterval();
+    fetchMaxMessages();
+    fetchLedPin();
+    fetchLedStatus();
+    fetchMemory();
+    fetchSelfMac();
+}
+
+function showConnectedMacs() {
+    fetch('/api/get_macs')
+        .then(res => res.text())
+        .then(data => { document.getElementById('connectedMacs').textContent = data; })
+        .catch(err => { document.getElementById('connectedMacs').textContent = '获取失败: ' + err; });
+}
+
+function showNicknames() {
+    fetch('/api/get_nicknames')
+        .then(res => res.json())
+        .then(data => {
+            var lines = Object.entries(data).map(([mac, nick]) => mac + ' -> ' + nick);
+            document.getElementById('nicknameList').textContent = lines.join('\n') || '暂无昵称';
+        })
+        .catch(err => { document.getElementById('nicknameList').textContent = '获取失败: ' + err; });
+}
+
+// ---- 取消所有自动执行 ----
+// 页面加载时不自动调用任何函数
+</script>
+</body>
+</html>

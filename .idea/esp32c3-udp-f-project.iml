@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="PYTHON_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/client/min_all.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/client/min_css.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/client/min_html.py" />
+      <excludeFolder url="file://$MODULE_DIR$/client/min_js.py" />
+      <excludeFolder url="file://$MODULE_DIR$/client/min_py.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/server_flip/boot.py" />
+      <excludeFolder url="file://$MODULE_DIR$/server_flip/main.py" />
+      <excludeFolder url="file://$MODULE_DIR$/server_flip/min_all.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/server_flip/min_css.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/server_flip/min_html.py" />
+      <excludeFolder url="file://$MODULE_DIR$/server_flip/min_js.py" />
+      <excludeFolder url="file://$MODULE_DIR$/server_flip/min_py.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/client/boot.py" />
+      <excludeFolder url="file://$MODULE_DIR$/client/main.py" />
+      <excludeFolder url="file://$MODULE_DIR$/boot.py" />
+      <excludeFolder url="file://$MODULE_DIR$/main.py" />
+      <excludeFolder url="file://$MODULE_DIR$/min_all.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/min_css.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/min_html.py" />
+      <excludeFolder url="file://$MODULE_DIR$/min_js.py" />
+      <excludeFolder url="file://$MODULE_DIR$/min_py.sh" />
+      <excludeFolder url="file://$MODULE_DIR$/zip" />
+      <excludeFolder url="file://$MODULE_DIR$/config" />
+    </content>
+    <orderEntry type="jdk" jdkName="Python 3.14 (esp32c3-udp-f-project)" jdkType="Python SDK" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+  <component name="PyDocumentationSettings">
+    <option name="format" value="PLAIN" />
+    <option name="myDocStringFormat" value="Plain" />
+  </component>
+</module>
