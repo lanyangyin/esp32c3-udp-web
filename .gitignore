@@ -1,9 +1,2 @@
 # 项目排除路径
-/boot.py
-/client/boot.py
-/client/main.py
 /config/
-/main.py
-/server_flip/boot.py
-/server_flip/main.py
-/zip/
