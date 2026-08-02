@@ -9,6 +9,7 @@ import wifi
 import udp
 from util import pin_claim, pin_release
 import _thread
+import machine
 from machine import Pin
 
 
@@ -135,20 +136,39 @@ def main():
             pin_release(pin)
     set_servo_controllers(servo_controllers)
 
+    # 启动 UDP 接收线程
+    try:
+        _thread.start_new_thread(udp.udp_receiver, ())
+    except Exception as e:
+        print(f"[UDP] 接收线程启动失败: {e}")
+
     # 启动 UDP 邻居路由回复线程
     try:
         _thread.start_new_thread(udp.udp_neighbor_routing_reply, ())
     except Exception as e:
-        print(f"[UDP] 接收线程启动失败: {e}")
+        print(f"[UDP] 回复线程启动失败: {e}")
 
     # 强制垃圾回收
     gc.collect()
 
+    # 主线程监控心跳
     try:
-        udp.udp_receiver()
-    except Exception as e:
-        import sys
-        print(f"[UDP] 接收启动失败: {e}")
+        while True:
+            # 更新主线程自身心跳（作为系统健康标志）
+            config.update_heartbeat('main')
+
+            # 检查所有线程心跳
+            dead = config.check_heartbeats()
+            if dead:
+                print(f"[WATCHDOG] 以下线程无心跳: {dead}，将重启设备")
+                # 等待日志打印完成
+                time.sleep(1)
+                machine.reset()
+
+            time.sleep(5)  # 每5秒检查一次
+    except KeyboardInterrupt:
+        print("[MAIN] 退出")
+        machine.reset()
 
 
 if __name__ == "__main__":

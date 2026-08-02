@@ -204,10 +204,11 @@ def handle_ir05t_command(parts):
             return "学习失败（超时或无信号）"
 
     # ---------- 学习并保存 ----------
-    if subcmd == "learn" and len(parts) >= 4 and parts[3].lower() == "save":
-        if len(parts) < 5:
-            return "错误: 缺少数据名，格式 ir05t,learn,save,<设备名>,<数据名>"
-        data_name = parts[4].strip()
+    if subcmd == "learn_save":
+        if len(parts) < 4:
+            return "错误: 缺少数据名，格式 ir05t,learn_save,<设备名>,<数据名>"
+        dev_name = parts[2].strip()
+        data_name = parts[3].strip()
         if not data_name:
             return "错误: 数据名不能为空"
         if not is_safe_name(data_name):

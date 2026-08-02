@@ -39,7 +39,7 @@ DEFAULT_COMMANDS = {
             {"cmd": "ir05t,list,<设备名>", "desc": "列出设备下所有已学习的数据"},
             {"cmd": "ir05t,get,<设备名>,<数据名>", "desc": "获取指定数据内容"},
             {"cmd": "ir05t,learn,<设备名>", "desc": "通用学习（不保存）"},
-            {"cmd": "ir05t,learn,save,<设备名>,<数据名>", "desc": "学习并保存数据"},
+            {"cmd": "ir05t,learn_save,<设备名>,<数据名>", "desc": "学习并保存数据"},
             {"cmd": "ir05t,send,<设备名>,<数据名>", "desc": "发送已保存的数据"},
             {"cmd": "ir05t,delete_data,<设备名>,<数据名>", "desc": "删除指定数据"},
             {"cmd": "ir05t,learn_channel,<设备名>,<1~5>", "desc": "通道学习"},
@@ -204,6 +204,7 @@ ROUTE_STEP = 2             # 路由步距（每跳增加）
 NEIGHBOR_TTL_MAX = 2       # 邻居表条目最大TTL
 DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL = 300       # 邻居注册申请回复间隔
 DEFAULT_ROUTE_ADVERTISE_INTERVAL = 120          # 路由通告间隔
+HEARTBEAT_TIMEOUT = 120   # 秒
 
 # ============================================================================
 # 分片协议

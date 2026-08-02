@@ -9,20 +9,41 @@ import wifi
 import udp
 from util import pin_claim, pin_release
 import _thread
+import machine
 from machine import Pin
-
 
 from lib.easyweb import EasyWeb
 import web_routes
-
-
-
 
 print("=== ESP32-C3 启动中 ===")
 print("按住 Ctrl+C 或在此3秒内按 RST 后立即按 Ctrl+C 可进入 REPL")
 time.sleep(3)
 print("继续执行主程序...")
 
+
+def start_web_server():
+    """启动 Web 服务器（独立线程），并在循环中更新心跳"""
+    app = EasyWeb()
+    web_routes.setup_routes(app)
+    print("[WEB] Web 服务器启动 (端口 80)")
+
+    # 在 app.run() 的阻塞循环中，我们需要定期更新心跳
+    # 解决方案：启动一个单独的线程来更新心跳
+    # 或者利用 EasyWeb 的 run 方法中的循环（如果可修改）
+    # 这里我们使用一个单独的线程来模拟心跳更新
+    def _heartbeat_updater():
+        while True:
+            config.update_heartbeat('web_server')
+            time.sleep(5)  # 每5秒更新一次
+
+    # 启动心跳更新线程
+    try:
+        _thread.start_new_thread(_heartbeat_updater, ())
+    except Exception as e:
+        print(f"[WEB] 心跳线程启动失败: {e}")
+
+    # 启动 Web 服务器（阻塞）
+    app.run(host="0.0.0.0", port=80)
 
 def main():
     # ---------- 1. 加载所有配置 ----------
@@ -80,7 +101,6 @@ def main():
         if led:
             led.off()
 
-
     # 启动 UDP 接收线程
     try:
         _thread.start_new_thread(udp.udp_receiver, ())
@@ -91,21 +111,35 @@ def main():
     try:
         _thread.start_new_thread(udp.udp_neighbor_routing_reply, ())
     except Exception as e:
-        print(f"[UDP] 接收线程启动失败: {e}")
+        print(f"[UDP] 回复线程启动失败: {e}")
 
-
-    # 创建 Web 应用并注册路由
-    app = EasyWeb()
-    web_routes.setup_routes(app)
+    # 启动 Web 服务器线程
+    try:
+        _thread.start_new_thread(start_web_server, ())
+    except Exception as e:
+        print(f"[WEB] Web 服务器启动失败: {e}")
 
     # 强制垃圾回收
     gc.collect()
 
+    # 主线程监控心跳
     try:
-        app.run(host="0.0.0.0", port=80)
-    except Exception as e:
-        import sys
-        print("[HTTP] Web 服务器异常退出:")
+        while True:
+            # 更新主线程自身心跳（作为系统健康标志）
+            config.update_heartbeat('main')
+
+            # 检查所有线程心跳
+            dead = config.check_heartbeats()
+            if dead:
+                print(f"[WATCHDOG] 以下线程无心跳: {dead}，将重启设备")
+                # 等待日志打印完成
+                time.sleep(1)
+                machine.reset()
+
+            time.sleep(5)  # 每5秒检查一次
+    except KeyboardInterrupt:
+        print("[MAIN] 退出")
+        machine.reset()
 
 
 if __name__ == "__main__":
