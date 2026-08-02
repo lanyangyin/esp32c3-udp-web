@@ -33,6 +33,17 @@ button.danger:hover { background: #d32f2f; }
 </div>
 <h2>ESP32-C3 控制台 - 系统设置</h2>
 
+<!-- ===== 新增：本机昵称设置 ===== -->
+<div class="section">
+  <h3>本机昵称设置</h3>
+  <label>新昵称: <input type="text" id="self_nickname_input" placeholder="请输入新昵称"></label>
+  <button onclick="setSelfNickname()">设置（立即生效）</button>
+  <br><br>
+  <button onclick="getSelfNickname()">获取当前昵称</button>
+  <span id="selfNicknameDisplay" style="margin-left: 10px;"></span>
+  <div class="example">API: /api/set_self_nickname (POST)</div>
+</div>
+
 <div class="section">
   <h3>LED 引脚配置</h3>
   <label>引脚号: <input type="number" id="led_pin_new" min="0" max="21"></label>
@@ -59,6 +70,52 @@ function showResult(text) {
     document.getElementById('result').textContent = text;
 }
 
+// ----- 本机昵称相关 -----
+function setSelfNickname() {
+    var nickname = document.getElementById('self_nickname_input').value.trim();
+    if (!nickname) {
+        showResult('请输入新昵称');
+        return;
+    }
+    fetch('/api/set_self_nickname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nickname })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('修改本机昵称: ' + data);
+        getSelfNickname(); // 刷新显示
+    })
+    .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+function getSelfNickname() {
+    fetch('/api/get_self_mac')
+        .then(res => res.json())
+        .then(data => {
+            var mac = data.mac || '';
+            if (!mac) {
+                document.getElementById('selfNicknameDisplay').textContent = '无法获取MAC';
+                return;
+            }
+            fetch('/api/get_nicknames')
+                .then(res => res.json())
+                .then(nicks => {
+                    var nick = nicks[mac] || '未设置';
+                    document.getElementById('selfNicknameDisplay').textContent = '当前昵称: ' + nick;
+                    document.getElementById('self_nickname_input').value = nick !== '未设置' ? nick : '';
+                })
+                .catch(() => {
+                    document.getElementById('selfNicknameDisplay').textContent = '获取昵称失败';
+                });
+        })
+        .catch(() => {
+            document.getElementById('selfNicknameDisplay').textContent = '获取MAC失败';
+        });
+}
+
+// ----- LED 相关 -----
 function getLedPin() {
     fetch('/api/get_led_pin')
         .then(res => res.json())
@@ -92,7 +149,7 @@ function rebootDevice() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-// 取消自动加载
+// 取消自动加载，所有操作均由按钮触发
 </script>
 </body>
 </html>

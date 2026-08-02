@@ -1,5 +1,5 @@
 # ir_commands.py - IR05T 多设备命令处理
-
+from info_commands import get_help_info
 from config import (
     get_ir_device, set_ir_device, delete_ir_device,
     list_ir_devices, get_ir_data, set_ir_data,
@@ -183,6 +183,9 @@ def handle_ir05t_command(parts):
             return f"设备 '{name}' 已删除"
         else:
             return "删除配置失败"
+    # ---------- 帮助命令（无需设备名） ----------
+    if subcmd == "help":
+        return get_help_info("ir05t")
 
     # ---------- 需要设备名的操作命令 ----------
     if len(parts) < 3:

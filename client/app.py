@@ -120,6 +120,7 @@ def main():
         _thread.start_new_thread(udp.udp_neighbor_routing_reply, ())
     except Exception as e:
         print(f"[UDP] 接收线程启动失败: {e}")
+
     # 强制垃圾回收
     gc.collect()
 

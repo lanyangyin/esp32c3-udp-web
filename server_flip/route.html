@@ -33,24 +33,27 @@ button.danger:hover { background: #d32f2f; }
   <a href="/settings/udp">UDP设置</a> |
   <a href="/settings/system">系统设置</a>
 </div>
-<h2>ESP32-C3 控制台 - 路由表</h2>
+<h2>ESP32-C3 控制台 - 路由表管理</h2>
 
+<!-- 路由表操作精简 -->
 <div class="section">
   <h3>路由表操作</h3>
-  <button onclick="routeApRegister()">路由表AP注册请求</button>
-  <div class="example">示例: /api/route_ap_register_request</div>
-  <br><br>
-  <button onclick="routeStaUpdate()">路由表STA注册更新请求</button>
-  <div class="example">示例: /api/route_sta_update_request</div>
-  <br><br>
-  <button onclick="routeStaLearn()">路由表STA注册学习请求</button>
-  <div class="example">示例: /api/route_sta_learn_request</div>
-  <br><br>
-  <button onclick="routeStaAdvertise()">路由表STA注册通告请求</button>
-  <div class="example">示例: /api/route_sta_advertise_request</div>
-  <br><br>
-  <button onclick="routeStaSync()">路由表STA注册同步请求</button>
+  <button onclick="routeSync()">路由表同步（通告+学习）</button>
   <div class="example">示例: /api/route_sta_sync_request</div>
+  <br><br>
+  <button onclick="routeApRegister()">AP注册请求</button>
+  <div class="example">示例: /api/route_ap_register_request</div>
+</div>
+
+<!-- 新增：路由通告间隔设置 -->
+<div class="section">
+  <h3>路由通告间隔设置</h3>
+  <label>间隔(秒): <input type="number" id="route_interval" min="5" value="120"></label>
+  <button onclick="setRouteInterval()">设置</button>
+  <br><br>
+  <button onclick="getRouteInterval()">获取当前间隔</button>
+  <span id="routeIntervalDisplay" style="margin-left: 10px;"></span>
+  <div class="example">API: /api/set_route_interval (POST), /api/get_route_interval (GET)</div>
 </div>
 
 <div class="section">
@@ -77,7 +80,7 @@ button.danger:hover { background: #d32f2f; }
   <h3>UDP 消息列表</h3>
   <div id="udpMsgList" class="msg-area">等待消息...</div>
   <button onclick="clearUdpMsg()" style="background:#f44336;">清空</button>
-  <button onclick="refreshUdpMessages()" style="background:#2196F3;">刷新</button>
+  <button onclick="refreshUdpMessages()" style="background:#2196F3;">刷新消息</button>
   <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
 </div>
 
@@ -91,6 +94,58 @@ function showResult(text) {
     document.getElementById('result').textContent = text;
 }
 
+// ----- 路由表操作 -----
+function routeSync() {
+    fetch('/api/route_sta_sync_request')
+        .then(res => res.text())
+        .then(data => {
+            showResult('同步请求: ' + data);
+            setTimeout(fetchRouteTable, 3000);
+        })
+        .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+function routeApRegister() {
+    fetch('/api/route_ap_register_request')
+        .then(res => res.text())
+        .then(data => {
+            showResult('AP注册请求: ' + data);
+            setTimeout(fetchRouteTable, 2000);
+        })
+        .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+// ----- 路由通告间隔设置 -----
+function setRouteInterval() {
+    var interval = document.getElementById('route_interval').value.trim();
+    if (!interval) { showResult('请输入间隔秒数'); return; }
+    fetch('/api/set_route_interval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval: parseInt(interval) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('设置间隔: ' + data);
+        getRouteInterval();
+    })
+    .catch(err => showResult('请求失败: ' + err.toString()));
+}
+
+function getRouteInterval() {
+    fetch('/api/get_route_interval')
+        .then(res => res.json())
+        .then(data => {
+            var val = data.interval || '未获取';
+            document.getElementById('route_interval').value = val;
+            document.getElementById('routeIntervalDisplay').textContent = '当前间隔: ' + val + ' 秒';
+        })
+        .catch(err => {
+            document.getElementById('routeIntervalDisplay').textContent = '获取失败';
+        });
+}
+
+// ----- 路由表管理 -----
 function fetchRouteTable() {
     fetch('/api/route_table_with_nick')
         .then(res => res.json())
@@ -142,56 +197,6 @@ function deleteRoute() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-function routeApRegister() {
-    fetch('/api/route_ap_register_request')
-        .then(res => res.text())
-        .then(data => {
-            showResult('AP注册请求: ' + data);
-            setTimeout(fetchRouteTable, 2000);
-        })
-        .catch(err => showResult('请求失败: ' + err.toString()));
-}
-
-function routeStaUpdate() {
-    fetch('/api/route_sta_update_request')
-        .then(res => res.text())
-        .then(data => {
-            showResult('STA更新请求: ' + data);
-            setTimeout(fetchRouteTable, 2000);
-        })
-        .catch(err => showResult('请求失败: ' + err.toString()));
-}
-
-function routeStaLearn() {
-    fetch('/api/route_sta_learn_request')
-        .then(res => res.text())
-        .then(data => {
-            showResult('STA学习请求: ' + data);
-            setTimeout(fetchRouteTable, 3000);
-        })
-        .catch(err => showResult('请求失败: ' + err.toString()));
-}
-
-function routeStaAdvertise() {
-    fetch('/api/route_sta_advertise_request')
-        .then(res => res.text())
-        .then(data => {
-            showResult('STA通告请求: ' + data);
-            setTimeout(fetchRouteTable, 2000);
-        })
-        .catch(err => showResult('请求失败: ' + err.toString()));
-}
-
-function routeStaSync() {
-    fetch('/api/route_sta_sync_request')
-        .then(res => res.text())
-        .then(data => {
-            showResult('STA同步请求: ' + data);
-            setTimeout(fetchRouteTable, 5000);
-        })
-        .catch(err => showResult('请求失败: ' + err.toString()));
-}
-
 function setRouteNick() {
     var mac = document.getElementById('route_nick_mac').value.trim();
     var nickname = document.getElementById('route_nick_name').value.trim();
@@ -202,7 +207,7 @@ function setRouteNick() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-// ---------- UDP 消息 ----------
+// ----- UDP 消息（手动刷新） -----
 function fetchUdpMessages() {
     fetch('/api/udp_messages')
         .then(res => res.json())
@@ -237,30 +242,8 @@ function clearUdpMsg() {
         .catch(err => showResult('请求失败: ' + err.toString()));
 }
 
-var pollIntervalId = null;
-function initPolling() {
-    fetch('/api/get_udp_poll_interval')
-        .then(res => res.json())
-        .then(data => {
-            var interval = data.interval || 5000;
-            if (pollIntervalId) {
-                clearInterval(pollIntervalId);
-            }
-            pollIntervalId = setInterval(fetchUdpMessages, interval);
-            console.log('UDP消息刷新间隔设为', interval, '毫秒');
-        })
-        .catch(err => {
-            console.error('获取轮询间隔失败，使用默认5秒:', err);
-            if (pollIntervalId) {
-                clearInterval(pollIntervalId);
-            }
-            pollIntervalId = setInterval(fetchUdpMessages, 5000);
-        });
-}
-
-// 页面加载时初始化
-initPolling();
-fetchRouteTable();
+// ---- 取消所有自动执行 ----
+// 页面加载时不自动调用任何函数
 </script>
 </body>
 </html>

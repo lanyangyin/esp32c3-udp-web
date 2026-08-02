@@ -1,6 +1,7 @@
 # neighbor_commands.py - 邻居表 UDP 命令处理
 import config
 import neighbor
+from info_commands import get_help_info
 from neighbor import format_neighbor_table
 
 
@@ -30,6 +31,6 @@ def handle_neighbor_command(parts):
         except ValueError:
             return "错误: 间隔必须是整数"
     elif subcmd == "help":
-        return "邻居模块命令:\n  neighbor,list - 显示邻居表\n  neighbor,set_interval,<秒数> - 设置广播间隔"
+        return get_help_info("neighbor")
     else:
         return f"未知 neighbor 子命令: {subcmd}，可用: list, set_interval, help"

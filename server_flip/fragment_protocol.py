@@ -152,7 +152,8 @@ def send_udp_fragmented(target_ip, port, src_mac, dst_mac, content,
             return False
         for i, frag in enumerate(fragments):
             frag_bytes = frag.encode('utf-8')
-            print(f"  分片 {i+1}: 文本='{frag[:30]}{'...' if len(frag)>30 else ''}', 字节长度={len(frag_bytes)}")
+            if DEBUG_FRAGMENT:
+                print(f"  分片 {i+1}: 文本='{frag[:30]}{'...' if len(frag)>30 else ''}', 字节长度={len(frag_bytes)}")
 
     # ---------- 4. 分配消息 ID 和 UDP socket ----------
     msg_id = _get_next_msg_id()           # 获取 1~10 的循环 ID，用于接收端重组
@@ -183,6 +184,7 @@ def send_udp_fragmented(target_ip, port, src_mac, dst_mac, content,
         # 5.5 发送 UDP 数据包
         try:
             sock.sendto(msg.encode('utf-8'), (target_ip, port))
+            print(f"[UDP] 发送到{(target_ip, port)}")
             sent_count += 1
             sent_bytes_total += frag_len
         except Exception as e:

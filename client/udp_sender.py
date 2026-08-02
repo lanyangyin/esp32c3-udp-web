@@ -16,7 +16,7 @@ from constants import (
     UDP_RESPONSE_MAX_PACKET,
     UDP_RESPONSE_SLEEP,
     DEFAULT_ROUTE_TTL,
-    NEIGHBOR_TTL_MAX, BROADCAST_TTL
+    NEIGHBOR_TTL_MAX, BROADCAST_TTL, DEBUG_FRAGMENT
 )
 
 # =============================================================================
@@ -134,18 +134,23 @@ def send_both_broadcast_once(content):
 # =============================================================================
 def send_response(text, target_ip, dst_mac:str, direct_transmission:bool=True):
     """发送 UDP 回复，自动分段（纯文本）"""
+    gc.collect()  # 发送前尝试回收内存
+
     if direct_transmission:
         MAX_PACKET_SIZE = UDP_RESPONSE_MAX_PACKET
         lines = text.split('\n')
         if len(text.encode('utf-8')) <= MAX_PACKET_SIZE:
             data = text.encode('utf-8')
+            sock = None
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.settimeout(0.5)
                 sock.sendto(data, (target_ip, config.g_udp_broadcast_port))
-                sock.close()
             except Exception as e:
                 print(f"[UDP] 回复发送失败: {e}")
+            finally:
+                if sock:
+                    sock.close()
             return
 
         # 分段发送
@@ -164,6 +169,7 @@ def send_response(text, target_ip, dst_mac:str, direct_transmission:bool=True):
                 current_len += line_len
         if current_lines:
             parts.append("\n".join(current_lines))
+
         num_parts = len(parts)
         for i, part_text in enumerate(parts):
             if num_parts > 1:
@@ -171,15 +177,18 @@ def send_response(text, target_ip, dst_mac:str, direct_transmission:bool=True):
             else:
                 packet_text = part_text
             data = packet_text.encode('utf-8')
+            sock = None
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 sock.settimeout(0.5)
                 sock.sendto(data, (target_ip, config.g_udp_broadcast_port))
-                sock.close()
                 print(f"[UDP] 已发送分段 {i + 1}/{num_parts} 到 {target_ip}:{config.g_udp_broadcast_port}, 大小 {len(data)} 字节")
                 time.sleep(UDP_RESPONSE_SLEEP)
             except Exception as e:
                 print(f"[UDP] 发送段 {i+1} 失败: {e}")
+            finally:
+                if sock:
+                    sock.close()
     else:
         # 分片协议发送，内部已有打印（在 fragment_protocol 中）
         send_route_message(dst_mac, text)

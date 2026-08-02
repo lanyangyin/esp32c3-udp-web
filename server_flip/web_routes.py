@@ -302,6 +302,67 @@ def setup_routes(app):
         mac_str = util.get_self_mac()
         return json.dumps({"mac": mac_str}), 200, {'Content-Type': 'application/json; charset=utf-8'}
 
+    @app.route("/api/set_ap_netmask", methods=["POST"])
+    @gc_wrapper
+    def set_ap_netmask(request):
+        mask = get_request_param(request, "netmask")
+        if not mask:
+            return "缺少 netmask 参数", 400
+        # 验证格式
+        parts = mask.split('.')
+        if len(parts) != 4 or not all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+            return "无效子网掩码格式", 400
+        config.update_ap_netmask(mask)
+        return f"AP 子网掩码已设为 {mask}，需重启生效", 200
+
+    @app.route("/api/set_ap_gateway", methods=["POST"])
+    @gc_wrapper
+    def set_ap_gateway(request):
+        gateway = get_request_param(request, "gateway")
+        if not gateway:
+            return "缺少 gateway 参数", 400
+        parts = gateway.split('.')
+        if len(parts) != 4 or not all(p.isdigit() and 0 <= int(p) <= 255 for p in parts):
+            return "无效网关地址格式", 400
+        config.update_ap_gateway(gateway)
+        return f"AP 网关已设为 {gateway}，需重启生效", 200
+
+    @app.route("/api/config_get")
+    @gc_wrapper
+    def config_get(request):
+        """获取所有配置（JSON 格式）"""
+        sys_cfg = config.load_system_config()
+        wifi_cfg = config.load_wifi_config()
+        neighbor_cfg = config.load_neighbor_config()
+        route_cfg = config.load_route_config()
+        return json.dumps({
+            "system": sys_cfg,
+            "wifi": {"ssid": wifi_cfg[0], "password": wifi_cfg[1]},
+            "neighbor": neighbor_cfg,
+            "route": route_cfg
+        }), 200, {'Content-Type': 'application/json'}
+
+    @app.route("/api/set_self_nickname", methods=["POST"])
+    @gc_wrapper
+    def set_self_nickname(request):
+        """修改本机昵称，立即生效，并处理冲突"""
+        nickname = get_request_param(request, "nickname")
+        if not nickname:
+            return "缺少 nickname 参数", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        nickname = nickname.strip()
+        if not nickname:
+            return "昵称不能为空", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        # 调用 config 和 neighbor 更新
+        try:
+            # 1. 更新配置文件
+            config.update_device_nickname(nickname)
+            # 2. 更新昵称表（处理冲突）
+            from neighbor import update_self_nickname
+            update_self_nickname()
+            return f"本机昵称已更新为 '{nickname}'", 200, {'Content-Type': 'text/plain; charset=utf-8'}
+        except Exception as e:
+            return f"更新失败: {e}", 500, {'Content-Type': 'text/plain; charset=utf-8'}
+
     @app.route("/api/get_led_status")
     @gc_wrapper
     def get_led_status(request):
@@ -581,6 +642,34 @@ def setup_routes(app):
             return f"昵称设置成功: {mac} -> {nickname}", 200, {'Content-Type': 'text/plain; charset=utf-8'}
         else:
             return "设备未认证或不存在", 404, {'Content-Type': 'text/plain; charset=utf-8'}
+
+
+    # ========================================================================
+    # 邻居间隔配置
+    # ========================================================================
+
+    @app.route("/api/set_neighbor_interval", methods=["POST"])
+    @gc_wrapper
+    def set_neighbor_interval(request):
+        interval = get_request_param(request, "interval")
+        if not interval:
+            return "缺少 interval 参数", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        try:
+            val = int(interval)
+            if val < 5:
+                return "间隔必须 >= 5 秒", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        except:
+            return "interval 必须是整数", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        config.update_neighbor_advertise_interval(val)
+        return f"邻居广播间隔已设为 {val} 秒", 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+    @app.route("/api/get_neighbor_interval")
+    @gc_wrapper
+    def get_neighbor_interval(request):
+        return json.dumps({"interval": config.g_neighbor_advertise_interval}), 200, {
+            'Content-Type': 'application/json; charset=utf-8'}
+
+
     # ========================================================================
     # API：路由表操作
     # ========================================================================
@@ -618,12 +707,34 @@ def setup_routes(app):
             return f"路由 {mac} 已删除", 200, {'Content-Type': 'text/plain; charset=utf-8'}
         else:
             return "路由不存在", 404, {'Content-Type': 'text/plain; charset=utf-8'}
-    @app.route("/api/route_clear")
+
+
+    # ========================================================================
+    # 路由间隔配置
+    # ========================================================================
+
+    @app.route("/api/set_route_interval", methods=["POST"])
     @gc_wrapper
-    def route_clear_api(request):
-        """清空路由表"""
-        route.save_route_table({})
-        return "路由表已清空", 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    def set_route_interval(request):
+        interval = get_request_param(request, "interval")
+        if not interval:
+            return "缺少 interval 参数", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        try:
+            val = int(interval)
+            if val < 5:
+                return "间隔必须 >= 5 秒", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        except:
+            return "interval 必须是整数", 400, {'Content-Type': 'text/plain; charset=utf-8'}
+        config.update_route_advertise_interval(val)
+        return f"路由通告间隔已设为 {val} 秒", 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+    @app.route("/api/get_route_interval")
+    @gc_wrapper
+    def get_route_interval(request):
+        return json.dumps({"interval": config.g_route_advertise_interval}), 200, {
+            'Content-Type': 'application/json; charset=utf-8'}
+
+
     # ========================================================================
     # API：UDP 操作
     # ========================================================================
@@ -873,3 +984,29 @@ def setup_routes(app):
             machine.reset()
         _thread.start_new_thread(_do_reboot, ())
         return "设备正在重启...", 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+    @app.route("/api/config_reload")
+    @gc_wrapper
+    def config_reload(request):
+        """重新加载所有配置（不重启）"""
+        config.load_all_configs()
+        return "配置已重新加载", 200
+
+    @app.route("/api/config_reset")
+    @gc_wrapper
+    def config_reset(request):
+        """重置所有配置并重启"""
+        def _do_reset():
+            import os
+            files = ["system-config.json", "wifi-config.json", "nicknames.json",
+                     "neighbors.json", "route_table.json", "neighbor-config.json",
+                     "route-config.json"]
+            for f in files:
+                try:
+                    os.remove(f)
+                except:
+                    pass
+            time.sleep(0.5)
+            machine.reset()
+        _thread.start_new_thread(_do_reset, ())
+        return "正在重置配置并重启...", 200

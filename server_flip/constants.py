@@ -1,9 +1,11 @@
 # constants.py - 全局常量定义
+import random
+
 DEBUG_FRAGMENT = False
 # ============================================================================
 # 网络与通信
 # ============================================================================
-DEFAULT_AP_IP = "192.168.4.1"
+DEFAULT_AP_IP = f"192.168.{random.randint(5,250)}.1"
 DEFAULT_AP_SUBNET = "255.255.255.0"
 DEFAULT_AP_SSID_PREFIX = "ESP32-C3-Setup-"
 
@@ -105,7 +107,7 @@ DEFAULT_ROUTE_TTL = 20      # 路由消息默认TTL（当未知目标时）
 ROUTE_TTL_MAX = 4          # 路由表条目最大生存时间（跳数）
 ROUTE_STEP = 2             # 路由步距（每跳增加）
 NEIGHBOR_TTL_MAX = 2       # 邻居表条目最大TTL
-DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL = 120       # 邻居注册申请回复间隔
+DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL = 300       # 邻居注册申请回复间隔
 DEFAULT_ROUTE_ADVERTISE_INTERVAL = 120          # 路由通告间隔
 
 # ============================================================================

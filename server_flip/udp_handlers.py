@@ -1,4 +1,5 @@
 # udp_handlers.py - UDP 命令处理函数（业务逻辑层）
+import gc
 
 import machine
 import time
@@ -10,11 +11,29 @@ from udp_sender import send_response
 # =============================================================================
 
 def custom_udp_processing(payload, sender_ip, dst_mac="00:00:00:00:00:00", direct_transmission=True):
+    """
+    UDP 命令分发器，将命令路由到对应的模块处理函数。
+
+    参数：
+        payload: 收到的消息内容
+        sender_ip: 发送方 IP
+        dst_mac: 目标 MAC
+        direct_transmission: 是否直接回复（True=纯UDP回复，False=通过路由转发）
+    """
     lower = payload.lower().strip()
-    # 无参命令直接回复
+
+    # ---------- 精确匹配的无参命令 ----------
     if lower == "hello":
         send_response(f"Hi {dst_mac}", sender_ip, dst_mac, direct_transmission)
+        return
     elif lower == "hi":
         send_response(f"Hello {dst_mac}", sender_ip, dst_mac, direct_transmission)
-    else:
-        print(f"[UDP] 未识别的消息: {payload[:50]}")
+        return
+    gc.collect()
+
+    # ---------- 解析带模块前缀的命令（格式: 模块,子命令,参数...） ----------
+    parts = [p.strip() for p in payload.split(',')]
+    if len(parts) < 1:
+        return
+
+    module = parts[0].strip().lower()

@@ -33,7 +33,7 @@ from constants import (
     NULL_MAC,
     NEIGHBOR_TTL_MAX,
     ROUTE_TTL_MAX,
-    BROADCAST_TTL, UDP_RECV_BUFFER
+    BROADCAST_TTL, UDP_RECV_BUFFER, DEBUG_FRAGMENT
 )
 import util
 import wifi
@@ -44,7 +44,6 @@ from util import get_self_mac
 # =============================================================================
 # 全局状态变量
 # =============================================================================
-gc_counter = 0    # 邻居表&路由表扩散内存整理计时
 udp_messages = []                 # 存储收到的 UDP 消息（用于前端显示）
 udp_messages_lock = _thread.allocate_lock()
 
@@ -76,6 +75,7 @@ def clear_udp_messages():
 def udp_neighbor_routing_reply():
     last_advertise_time = time.time()
     last_route_advertise_time = time.time()
+    gc_counter = time.time()    # 邻居表&路由表扩散内存整理计时
     while True:
         try:
             now = time.time()
@@ -84,14 +84,15 @@ def udp_neighbor_routing_reply():
                 neighbor.ttl_decrement_neighbors()
                 send_neighbor_advertise_both()
                 last_advertise_time = now
-                gc.collect()
             # 定期广播路由通告
             if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 15)):
                 route.route_ttl_decrement()
                 send_route_advertise_both()
                 last_route_advertise_time = now
+            if now - gc_counter >= 9:
                 gc.collect()
-            time.sleep(1)  # 避免忙等
+                gc_counter = now
+            time.sleep(3)  # 避免忙等
         except OSError as e:
             if hasattr(e, 'errno') and e.errno in (11, 110, 116):
                 continue
@@ -132,6 +133,7 @@ def udp_receiver():
     last_clean = time.time()
     # last_advertise_time = time.time()
     # last_route_advertise_time = time.time()
+    gc_counter = time.time()
 
     while True:
         try:
@@ -145,13 +147,14 @@ def udp_receiver():
             #     neighbor.ttl_decrement_neighbors()
             #     send_neighbor_advertise_both()
             #     last_advertise_time = now
-            #     gc.collect()
             # # 定期广播路由通告
             # if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 5)):
             #     route.route_ttl_decrement()
             #     send_route_advertise_both()
             #     last_route_advertise_time = now
+            # if now - gc_counter >= 9:
             #     gc.collect()
+            #     gc_counter = now
 
             readable, _, _ = select.select([recv_sock], [], [], 1.0)
             if readable:
@@ -175,7 +178,8 @@ def udp_receiver():
                     if sender_ip in self_ips:
                         print(f"[UDP] 忽略来自自身的消息")
                         continue
-                    print(f"[UDP] 非分片格式消息")
+                    if DEBUG_FRAGMENT:
+                        print(f"[UDP] 非分片格式消息:{msg[:40]}")
                     if msg:
                         add_udp_message(addr, msg)
                         udp_handlers.custom_udp_processing(msg, sender_ip)
@@ -195,7 +199,8 @@ def udp_receiver():
                 if not complete:
                     continue  # 等待更多分片
 
-                print(f"[UDP] 重组完成: TAG={tag}, SRC={src_mac}, DST={dst_mac}, TTL={ttl}, MSG={payload[:10]}")
+                if DEBUG_FRAGMENT:
+                    print(f"[UDP] 重组完成: TAG={tag}, SRC={src_mac}, DST={dst_mac}, TTL={ttl}, MSG={payload[:10]}")
 
 
                 # ========== 根据 TAG 处理业务逻辑 ==========
@@ -208,18 +213,11 @@ def udp_receiver():
                     if payload:
                         nickname = payload.strip()
                         # 处理冲突并更新昵称表
-                        from neighbor import resolve_nickname_conflict_and_update
-                        resolve_nickname_conflict_and_update(nickname, src_mac)
+                        neighbor.resolve_nickname_conflict_and_update(nickname, src_mac)
                         print(f"[UDP] 邻居昵称更新: {src_mac} -> {nickname}")
                     else:
                         print(f"[UDP] 邻居请求回复中无昵称")
-
-                # # ---------- 邻居注册请求 ----------
-                # elif tag == "邻居注册请求":
-                #     print(f"[UDP] 收到邻居注册请求，来自 {src_mac}")
-                #     # 1. 邻居注册请求回复
-                #     send_register_reply(target_ip=sender_ip, dst_mac=src_mac)
-
+                    gc.collect()
                 # ---------- 路由通告 ----------
                 elif tag == "路由通告":
                     # 1. 将发送方自身加入路由表，步距=1
@@ -261,6 +259,7 @@ def udp_receiver():
                         if added > 0:
                             route.save_route_table(table)
                         print(f"[ROUTE] 通告处理完成，添加 {added} 条新路由")
+                    gc.collect()
                 else:
                     my_mac = util.get_self_mac()
                     if dst_mac == my_mac or dst_mac == NULL_MAC or dst_mac == BROADCAST_MAC:

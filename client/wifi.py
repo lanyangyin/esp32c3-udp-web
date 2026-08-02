@@ -22,7 +22,7 @@ def start_ap():
     ap.active(True)
     ap.config(essid=config.g_ap_ssid, password=config.g_ap_password)
     ap.ifconfig((config.g_ap_ip, config.g_ap_subnet, config.g_ap_ip, config.g_ap_ip))
-    print(f"[AP] AP 已启动，SSID: '{config.g_ap_ssid}'，IP: {config.g_ap_ip}")
+    print(f"[AP] AP 已启动，SSID: '{config.g_ap_ssid}'，IP: http://{config.g_ap_ip}")
     return config.g_ap_ip
 
 

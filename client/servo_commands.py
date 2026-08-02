@@ -4,6 +4,8 @@
 
 import time
 from machine import Timer
+
+from info_commands import get_help_info
 from config import load_servo_config, save_servo_config, load_system_config, save_system_config, check_pin_conflicts
 from util import get_used_pins, pin_claim, pin_release
 
@@ -106,7 +108,9 @@ def handle_servo_command(parts):
         return "错误: 缺少子命令"
     subcmd = parts[1].strip().lower()
     try:
-        if subcmd == "list":
+        if subcmd == "help":
+            return get_help_info("servo")
+        elif subcmd == "list":
             if not servo_controllers:
                 return "暂无舵机"
             lines = ["舵机列表:"]
