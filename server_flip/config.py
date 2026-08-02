@@ -2,7 +2,7 @@
 # 提供所有配置文件的 CRUD（增删改查）操作
 
 import json
-from util import mac_to_str, get_mac_short, get_default_nickname
+from util import mac_to_str, get_mac_short, get_default_nickname, get_self_mac
 from constants import (
     DEFAULT_AP_IP, DEFAULT_AP_SUBNET,
     DEFAULT_STA_SSID, DEFAULT_STA_PASSWORD, DEFAULT_AP_SSID_PREFIX,
@@ -70,7 +70,7 @@ g_udp_broadcast_port = DEFAULT_UDP_BROADCAST_PORT
 g_udp_poll_interval = DEFAULT_UDP_POLL_INTERVAL
 g_max_udp_messages = DEFAULT_MAX_UDP_MESSAGES
 g_led_pin = DEFAULT_LED_PIN
-g_device_nickname = ""
+g_device_nickname = get_default_nickname()
 
 g_sta_ssid = DEFAULT_STA_SSID
 g_sta_password = DEFAULT_STA_PASSWORD
@@ -374,12 +374,20 @@ def update_route_advertise_interval(interval):
 # =============================================================================
 
 def load_nicknames():
-    """读取昵称表"""
+    """读取昵称表，若本机昵称为空则自动补全为默认昵称"""
     try:
         with open(NICKNAMES_FILE, "r") as f:
-            return json.load(f)
+            data = json.load(f)
     except:
-        return {}
+        data = {}
+
+    # 检查本机 MAC 是否有空昵称
+    self_mac = get_self_mac()
+    if self_mac in data and not data[self_mac]:
+        # 空昵称，替换为默认昵称
+        data[self_mac] = get_default_nickname()
+        save_nicknames(data)
+    return data
 
 def save_nicknames(nicknames):
     """保存昵称表（全量覆盖）"""

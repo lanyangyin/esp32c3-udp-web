@@ -24,17 +24,24 @@ from constants import MIN_PORT, MAX_PORT, API_CATALOG
 
 def get_request_param(request, key, default=""):
     if request.method == "POST":
+        # 尝试 JSON
         if request.headers.get("Content-Type", "").startswith("application/json"):
             try:
                 data = request.json
-                if data and key in data:
+                if data is not None and isinstance(data, dict):
                     return data.get(key, default)
             except:
                 pass
-        val = request.form.get(key)
-        if val is not None:
-            return val
-    args = request.args if request.args is not None else {}
+        # 尝试 form（确保 request.form 不为 None）
+        form = request.form
+        if form is not None and isinstance(form, dict):
+            val = form.get(key)
+            if val is not None:
+                return val
+    # GET 或 fallback
+    args = request.args
+    if args is None:
+        args = {}
     return args.get(key, default)
 
 
@@ -58,16 +65,38 @@ def make_response(data, status=200, content_type='text/plain'):
 
 def setup_routes(app):
     """注册 API 路由（仅保留 /api/*）"""
-    # ========================================================================
-    # API：目录
-    # ========================================================================
 
+    # ========================================================================
+    # 根路径：返回 API 使用说明
+    # ========================================================================
+    @app.route("/", methods=["GET"])
+    @gc_wrapper
+    def root(request):
+        """返回 API 使用指引"""
+        info = {
+            "message": "ESP32-C3 API Server",
+            "endpoints": {
+                "/api": "查看所有 API 类型列表 (GET)",
+                "/api/get_api?type=<类型>": "按类型获取 API 列表 (GET)",
+                "/api/...": "具体 API 接口，请查看 /api 返回的类型列表"
+            },
+            "example": "/api/get_api?type=neighbor"
+        }
+        return make_response(info, content_type='application/json')
+
+    # ========================================================================
+    # API：目录（只返回类型列表）
+    # ========================================================================
     @app.route("/api", methods=["GET"])
     @gc_wrapper
     def api_catalog(request):
-        """返回所有 API 的分类列表"""
-        return make_response(API_CATALOG, content_type='application/json')
+        """返回所有 API 的分类名称列表"""
+        types = list(API_CATALOG.keys())
+        return make_response({"types": types}, content_type='application/json')
 
+    # ========================================================================
+    # API：按类型获取详细 API 列表
+    # ========================================================================
     @app.route("/api/get_api", methods=["GET"])
     @gc_wrapper
     def get_api_by_type(request):
@@ -82,7 +111,6 @@ def setup_routes(app):
                 content_type='application/json'
             )
         return make_response(API_CATALOG[api_type], content_type='application/json')
-
 
     # ========================================================================
     # API：系统配置修改
@@ -394,8 +422,11 @@ def setup_routes(app):
         password = get_request_param(request, "password")
         if not ssid:
             return make_response("缺少 ssid 参数", 400, content_type='text/plain; charset=utf-8')
+        # 如果 ssid 为空字符串，视为无效
+        if ssid == "":
+            return make_response("ssid 不能为空", 400, content_type='text/plain; charset=utf-8')
         config.save_wifi_config(ssid, password)
-        return make_response(f"STA SSID/密码已更新，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
+        return make_response("STA SSID/密码已更新，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
     @app.route("/api/get_udp_recv_port")
     @gc_wrapper
