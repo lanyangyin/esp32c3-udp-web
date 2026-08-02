@@ -2,15 +2,19 @@
 # 提供所有配置文件的 CRUD（增删改查）操作
 
 import json
+import os
+import time
+import machine
 from util import mac_to_str, get_mac_short, get_default_nickname, get_self_mac
 from constants import (
     DEFAULT_AP_IP, DEFAULT_AP_SUBNET,
     DEFAULT_STA_SSID, DEFAULT_STA_PASSWORD, DEFAULT_AP_SSID_PREFIX,
     DEFAULT_UDP_RECV_PORT, DEFAULT_UDP_BROADCAST_PORT,
     DEFAULT_UDP_POLL_INTERVAL, DEFAULT_LED_PIN,
-    DEFAULT_MAX_UDP_MESSAGES, DEFAULT_STA_TIMEOUT,
+    DEFAULT_STA_TIMEOUT,
     ROUTE_TTL_MAX, ROUTE_STEP, NEIGHBOR_TTL_MAX,
-    DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL, DEFAULT_COMMANDS
+    DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL, DEFAULT_COMMANDS, DEFAULT_RESET_PIN,
+    DEFAULT_RESET_HOLD_TIME
 
 )
 
@@ -38,9 +42,10 @@ DEFAULT_SYSTEM_CONFIG = {
     "udp_broadcast_port": DEFAULT_UDP_BROADCAST_PORT,
     "udp_poll_interval": DEFAULT_UDP_POLL_INTERVAL,
     "led_pin": DEFAULT_LED_PIN,
-    "max_udp_messages": DEFAULT_MAX_UDP_MESSAGES,
     "sta_timeout": DEFAULT_STA_TIMEOUT,
-    "device_nickname": get_default_nickname()
+    "device_nickname": get_default_nickname(),
+    "reset_pin": DEFAULT_RESET_PIN,
+    "reset_hold_time": DEFAULT_RESET_HOLD_TIME,
 }
 
 DEFAULT_STA_CONFIG = {
@@ -68,9 +73,10 @@ g_sta_timeout = DEFAULT_STA_TIMEOUT
 g_udp_recv_port = DEFAULT_UDP_RECV_PORT
 g_udp_broadcast_port = DEFAULT_UDP_BROADCAST_PORT
 g_udp_poll_interval = DEFAULT_UDP_POLL_INTERVAL
-g_max_udp_messages = DEFAULT_MAX_UDP_MESSAGES
 g_led_pin = DEFAULT_LED_PIN
 g_device_nickname = get_default_nickname()
+g_reset_pin = DEFAULT_RESET_PIN
+g_reset_hold_time = DEFAULT_RESET_HOLD_TIME
 
 g_sta_ssid = DEFAULT_STA_SSID
 g_sta_password = DEFAULT_STA_PASSWORD
@@ -82,6 +88,9 @@ g_route_advertise_interval = DEFAULT_ROUTE_ADVERTISE_INTERVAL
 
 # 控制配置全局变量
 g_commands = DEFAULT_COMMANDS
+
+g_reset_pin_obj = None
+
 
 # =============================================================================
 # WiFi 配置（STA 凭据）
@@ -244,6 +253,20 @@ def update_ap_gateway(new_gw):
     ip_parts = new_gw.split('.')
     if len(ip_parts) == 4:
         g_ap_broadcast_addr = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}.255"
+
+def update_reset_pin(new_pin):
+    global g_reset_pin
+    config = load_system_config()
+    config["reset_pin"] = new_pin
+    save_system_config(config)
+    g_reset_pin = new_pin
+
+def update_reset_hold_time(new_time):
+    global g_reset_hold_time
+    config = load_system_config()
+    config["reset_hold_time"] = new_time
+    save_system_config(config)
+    g_reset_hold_time = new_time
 
 
 # =============================================================================
@@ -541,6 +564,37 @@ def save_route_config(cfg):
 
 
 # =============================================================================
+# 恢复出厂设置（重置）
+# =============================================================================
+
+def reset_to_factory():
+    """
+    删除所有配置文件并重启设备，恢复出厂设置。
+    注意：此函数会调用 machine.reset()，不会返回。
+    """
+    files_to_delete = [
+        SYSTEM_CONFIG_FILE,
+        WIFI_CONFIG_FILE,
+        NEIGHBORS_FILE,
+        ROUTE_TABLE_FILE,
+        NICKNAMES_FILE,
+        NEIGHBOR_CONFIG_FILE,
+        ROUTE_CONFIG_FILE,
+    ]
+    deleted = []
+    for f in files_to_delete:
+        try:
+            os.remove(f)
+            deleted.append(f)
+        except Exception as e:
+            print(f"[RESET] 删除 {f} 失败: {e}")
+    print(f"[RESET] 已删除 {len(deleted)} 个配置文件")
+    print("[RESET] 设备即将重启...")
+    time.sleep(1)
+    machine.reset()
+
+
+# =============================================================================
 # 全局配置加载（将 system-config.json 同步到 g_* 变量）
 # =============================================================================
 
@@ -551,9 +605,10 @@ def load_global_config():
     """
     global g_ap_ssid, g_ap_password, g_ap_ip, g_ap_subnet
     global g_udp_recv_port, g_udp_broadcast_port, g_ap_broadcast_addr
-    global g_udp_poll_interval, g_led_pin, g_max_udp_messages, g_sta_timeout
+    global g_udp_poll_interval, g_led_pin, g_sta_timeout
     global g_device_nickname, g_neighbor_advertise_interval
     global g_route_advertise_interval
+    global g_reset_pin, g_reset_hold_time
 
     config = load_system_config()
     g_ap_ssid = config["ap_ssid"]
@@ -565,8 +620,9 @@ def load_global_config():
     g_udp_broadcast_port = config["udp_broadcast_port"]
     g_udp_poll_interval = config.get("udp_poll_interval", DEFAULT_UDP_POLL_INTERVAL)
     g_led_pin = config.get("led_pin", DEFAULT_LED_PIN)
-    g_max_udp_messages = config.get("max_udp_messages", DEFAULT_MAX_UDP_MESSAGES)
     g_device_nickname = config.get("device_nickname", get_default_nickname())  # 若缺失则生成
+    g_reset_pin = config.get("reset_pin", DEFAULT_RESET_PIN)
+    g_reset_hold_time = config.get("reset_hold_time", DEFAULT_RESET_HOLD_TIME)
 
     # 从独立配置文件读取间隔
     neighbor_cfg = load_neighbor_config()

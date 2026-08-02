@@ -9,11 +9,14 @@ import wifi
 import udp
 from util import pin_claim, pin_release
 import _thread
+from machine import Pin
+
 
 from servo_control import ServoController
 from servo_commands import set_servo_controllers
 from ir05t import IR05T
 from ir_commands import set_ir_instances   # 改为注入字典
+
 
 print("=== ESP32-C3 启动中 ===")
 print("按住 Ctrl+C 或在此3秒内按 RST 后立即按 Ctrl+C 可进入 REPL")
@@ -40,6 +43,23 @@ def main():
         led = LEDController(pin=led_pin)
         print(f"[INIT] LED 控制器已初始化，引脚 GPIO{led_pin}")
         led.blink_once(3)   # 启动闪烁一次
+
+    # ---------- 重置引脚 ----------
+    reset_pin = config.g_reset_pin
+    pin_release(reset_pin)  # 先释放，避免冲突
+    ok, msg = pin_claim(reset_pin, "重置引脚")
+    if not ok:
+        print(f"[INIT] 重置引脚冲突: {msg}，重置功能禁用")
+        config.g_reset_pin_obj = None
+    else:
+        try:
+            reset_pin_obj = Pin(reset_pin, Pin.IN, Pin.PULL_UP)
+            config.g_reset_pin_obj = reset_pin_obj
+            print(f"[INIT] 重置引脚已初始化 GPIO{reset_pin}，短接 {config.g_reset_hold_time} 秒触发重置")
+        except Exception as e:
+            print(f"[INIT] 重置引脚初始化失败: {e}")
+            pin_release(reset_pin)
+            config.g_reset_pin_obj = None
 
     # 启动 AP
     ap_ip = wifi.start_ap()

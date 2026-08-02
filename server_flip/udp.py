@@ -44,30 +44,27 @@ from util import get_self_mac
 # =============================================================================
 # 全局状态变量
 # =============================================================================
-udp_messages = []                 # 存储收到的 UDP 消息（用于前端显示）
+udp_messages = None                 # 存储收到的 UDP 消息（用于前端显示）
 udp_messages_lock = _thread.allocate_lock()
 
 def add_udp_message(addr, msg):
     global udp_messages
     with udp_messages_lock:
-        udp_messages.append({
+        udp_messages = {
             'time': time.time(),
             'addr': str(addr),
             'msg': msg
-        })
-        while len(udp_messages) > config.g_max_udp_messages:
-            udp_messages.pop(0)
+        }
 
 def get_udp_messages():
-    """返回当前消息列表的副本（线程安全）"""
+    """返回包含单条消息的列表（兼容旧接口）"""
     with udp_messages_lock:
-        return list(udp_messages)
+        return [udp_messages] if udp_messages is not None else []
 
 def clear_udp_messages():
-    """清空消息列表（线程安全）"""
     global udp_messages
     with udp_messages_lock:
-        udp_messages = []
+        udp_messages = None
 
 # =============================================================================
 # 添加独立的邻居表路由表注册申请回复广播线程函数
@@ -130,9 +127,10 @@ def udp_receiver():
     # 回复端口（使用广播端口，也可独立配置）
     print(f"[UDP] UDP 回复端口: {config.g_udp_broadcast_port}")
 
+    reset_start_time = None
     last_clean = time.time()
-    # last_advertise_time = time.time()
-    # last_route_advertise_time = time.time()
+    last_advertise_time = time.time()
+    last_route_advertise_time = time.time()
     gc_counter = time.time()
 
     while True:
@@ -142,19 +140,23 @@ def udp_receiver():
             if now - last_clean > CACHE_CLEAN_INTERVAL:
                 fragment_protocol.clean_frag_cache()
                 last_clean = now
-            # # 定期广播邻居请求回复（携带昵称）
-            # if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(0, 3)):
-            #     neighbor.ttl_decrement_neighbors()
-            #     send_neighbor_advertise_both()
-            #     last_advertise_time = now
-            # # 定期广播路由通告
-            # if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 5)):
-            #     route.route_ttl_decrement()
-            #     send_route_advertise_both()
-            #     last_route_advertise_time = now
-            # if now - gc_counter >= 9:
-            #     gc.collect()
-            #     gc_counter = now
+
+            # ---------- 重置引脚检测 ----------
+            reset_pin_obj = config.g_reset_pin_obj
+            if reset_pin_obj is not None:
+                if reset_pin_obj.value() == 0:
+                    if reset_start_time is None:
+                        reset_start_time = time.time()
+                        print(f"[RESET] 引脚已短接，保持 {config.g_reset_hold_time} 秒后触发重置")
+                    else:
+                        elapsed = time.time() - reset_start_time
+                        if elapsed >= config.g_reset_hold_time:
+                            print("[RESET] 触发恢复出厂设置...")
+                            config.reset_to_factory()
+                else:
+                    if reset_start_time is not None:
+                        print("[RESET] 重置引脚已释放，取消计时")
+                        reset_start_time = None
 
             readable, _, _ = select.select([recv_sock], [], [], 1.0)
             if readable:
@@ -304,6 +306,19 @@ def udp_receiver():
                                 udp_send_to_ip(sender_ip, f"目标 {dst_mac} 不可达")
                                 print(f"[ROUTE_MSG] 无法转发，目标 {dst_mac} 不可达")
 
+            # # 定期广播邻居请求回复（携带昵称）
+            # if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(0, 3)):
+            #     neighbor.ttl_decrement_neighbors()
+            #     send_neighbor_advertise_both()
+            #     last_advertise_time = now
+            # # 定期广播路由通告
+            # if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 5)):
+            #     route.route_ttl_decrement()
+            #     send_route_advertise_both()
+            #     last_route_advertise_time = now
+            # if now - gc_counter >= 9:
+            #     gc.collect()
+            #     gc_counter = now
         except OSError as e:
             if hasattr(e, 'errno') and e.errno in (11, 110, 116):
                 continue

@@ -3,6 +3,7 @@ import gc
 
 import machine
 import time
+import config
 from udp_sender import send_response
 
 
@@ -24,10 +25,10 @@ def custom_udp_processing(payload, sender_ip, dst_mac="00:00:00:00:00:00", direc
 
     # ---------- 精确匹配的无参命令 ----------
     if lower == "hello":
-        send_response(f"Hi {dst_mac}", sender_ip, dst_mac, direct_transmission)
+        send_response(f"Hi {dst_mac}. I am {config.g_device_nickname}", sender_ip, dst_mac, direct_transmission)
         return
     elif lower == "hi":
-        send_response(f"Hello {dst_mac}", sender_ip, dst_mac, direct_transmission)
+        send_response(f"Hello {dst_mac}. I am {config.g_device_nickname}", sender_ip, dst_mac, direct_transmission)
         return
     gc.collect()
 

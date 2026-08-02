@@ -63,14 +63,24 @@ def make_response(data, status=200, content_type='text/plain'):
     return data, status, headers
 
 
+def with_cors(func):
+    """装饰器：处理 OPTIONS 预检请求"""
+    def wrapper(request):
+        if request.method == "OPTIONS":
+            return make_response("", 200, content_type='text/plain')
+        return func(request)
+    return wrapper
+
+
 def setup_routes(app):
     """注册 API 路由（仅保留 /api/*）"""
 
     # ========================================================================
     # 根路径：返回 API 使用说明
     # ========================================================================
-    @app.route("/", methods=["GET"])
+    @app.route("/", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def root(request):
         """返回 API 使用指引"""
         info = {
@@ -87,8 +97,9 @@ def setup_routes(app):
     # ========================================================================
     # API：目录（只返回类型列表）
     # ========================================================================
-    @app.route("/api", methods=["GET"])
+    @app.route("/api", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def api_catalog(request):
         """返回所有 API 的分类名称列表"""
         types = list(API_CATALOG.keys())
@@ -97,8 +108,9 @@ def setup_routes(app):
     # ========================================================================
     # API：按类型获取详细 API 列表
     # ========================================================================
-    @app.route("/api/get_api", methods=["GET"])
+    @app.route("/api/get_api", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_api_by_type(request):
         """根据类型返回 API 列表"""
         api_type = get_request_param(request, "type", "").strip()
@@ -116,8 +128,9 @@ def setup_routes(app):
     # API：系统配置修改
     # ========================================================================
 
-    @app.route("/api/set_ap_ip")
+    @app.route("/api/set_ap_ip", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_ap_ip(request):
         new_ip = get_request_param(request, "ip")
         if not new_ip:
@@ -134,8 +147,9 @@ def setup_routes(app):
         config.load_global_config()
         return make_response(f"AP IP 已更改为 {new_ip}，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_ap_ssid_password")
+    @app.route("/api/set_ap_ssid_password", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_ap_ssid_password(request):
         ssid = get_request_param(request, "ssid")
         password = get_request_param(request, "password")
@@ -147,8 +161,9 @@ def setup_routes(app):
         config.save_system_config(cfg)
         return make_response(f"AP SSID 已改为 '{ssid}'，密码已更新，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_udp_recv_port")
+    @app.route("/api/set_udp_recv_port", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_udp_recv_port(request):
         port_str = get_request_param(request, "port")
         if not port_str:
@@ -164,8 +179,9 @@ def setup_routes(app):
         config.save_system_config(cfg)
         return make_response(f"UDP 接收端口已改为 {port}，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_udp_broadcast_port")
+    @app.route("/api/set_udp_broadcast_port", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_udp_broadcast_port(request):
         port_str = get_request_param(request, "port")
         if not port_str:
@@ -181,15 +197,17 @@ def setup_routes(app):
         config.save_system_config(cfg)
         return make_response(f"UDP 广播/单播目标端口已改为 {port}，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/reset_ap_config")
+    @app.route("/api/reset_ap_config", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def reset_ap_config(request):
         config.reset_system_config()
         config.load_global_config()
         return make_response("AP 配置已重置为默认值，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_led_pin")
+    @app.route("/api/set_led_pin", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_led_pin(request):
         pin_str = get_request_param(request, "pin")
         if not pin_str:
@@ -206,19 +224,22 @@ def setup_routes(app):
         config.g_led_pin = pin
         return make_response(f"LED 引脚已更改为 GPIO{pin}，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/get_led_pin")
+    @app.route("/api/get_led_pin", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_led_pin(request):
         return make_response({"pin": config.g_led_pin}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_self_mac")
+    @app.route("/api/get_self_mac", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_self_mac(request):
         mac_str = util.get_self_mac()
         return make_response({"mac": mac_str}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/set_ap_netmask", methods=["POST"])
+    @app.route("/api/set_ap_netmask", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_ap_netmask(request):
         mask = get_request_param(request, "netmask")
         if not mask:
@@ -229,8 +250,9 @@ def setup_routes(app):
         config.update_ap_netmask(mask)
         return make_response(f"AP 子网掩码已设为 {mask}，需重启生效", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_ap_gateway", methods=["POST"])
+    @app.route("/api/set_ap_gateway", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_ap_gateway(request):
         gateway = get_request_param(request, "gateway")
         if not gateway:
@@ -241,8 +263,9 @@ def setup_routes(app):
         config.update_ap_gateway(gateway)
         return make_response(f"AP 网关已设为 {gateway}，需重启生效", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/config_get")
+    @app.route("/api/config_get", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def config_get(request):
         sys_cfg = config.load_system_config()
         wifi_cfg = config.load_wifi_config()
@@ -255,8 +278,9 @@ def setup_routes(app):
             "route": route_cfg
         }, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/set_self_nickname", methods=["POST"])
+    @app.route("/api/set_self_nickname", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_self_nickname(request):
         nickname = get_request_param(request, "nickname")
         if not nickname:
@@ -272,21 +296,24 @@ def setup_routes(app):
         except Exception as e:
             return make_response(f"更新失败: {e}", 500, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/get_led_status")
+    @app.route("/api/get_led_status", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_led_status(request):
         sta = network.WLAN(network.STA_IF)
         connected = sta.isconnected()
         status = "ON" if connected else "OFF"
         return make_response({"status": status}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_max_udp_messages")
+    @app.route("/api/get_max_udp_messages", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_max_udp_messages(request):
         return make_response({"value": config.g_max_udp_messages}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/set_max_udp_messages")
+    @app.route("/api/set_max_udp_messages", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_max_udp_messages(request):
         val_str = get_request_param(request, "value")
         if not val_str:
@@ -305,13 +332,15 @@ def setup_routes(app):
             udp.udp_messages.pop(0)
         return make_response(f"UDP 最大消息数已设为 {val}，已生效", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/get_sta_timeout")
+    @app.route("/api/get_sta_timeout", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_sta_timeout(request):
         return make_response({"value": config.g_sta_timeout}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/set_sta_timeout")
+    @app.route("/api/set_sta_timeout", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_sta_timeout(request):
         val_str = get_request_param(request, "value")
         if not val_str:
@@ -328,8 +357,9 @@ def setup_routes(app):
         config.g_sta_timeout = val
         return make_response(f"STA 连接超时已设为 {val} 秒，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_ap_net_segment")
+    @app.route("/api/set_ap_net_segment", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_ap_net_segment(request):
         segment_str = get_request_param(request, "segment")
         if not segment_str:
@@ -349,8 +379,9 @@ def setup_routes(app):
         config.load_global_config()
         return make_response(f"AP 网段已改为 {seg}，新 IP 将为 {new_ip}，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_udp_poll_interval")
+    @app.route("/api/set_udp_poll_interval", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_udp_poll_interval(request):
         interval_str = get_request_param(request, "interval")
         if not interval_str:
@@ -371,8 +402,9 @@ def setup_routes(app):
     # API：状态查询
     # ========================================================================
 
-    @app.route("/api/get_ap_status")
+    @app.route("/api/get_ap_status", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_ap_status(request):
         ap = network.WLAN(network.AP_IF)
         active = ap.active()
@@ -383,8 +415,9 @@ def setup_routes(app):
             "subnet": config.g_ap_subnet
         }, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_sta_status")
+    @app.route("/api/get_sta_status", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_sta_status(request):
         sta = network.WLAN(network.STA_IF)
         connected = sta.isconnected()
@@ -401,55 +434,62 @@ def setup_routes(app):
             "ip": ip
         }, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_ap_ssid_password")
+    @app.route("/api/get_ap_ssid_password", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_ap_ssid_password(request):
         return make_response({
             "ssid": config.g_ap_ssid,
             "password": config.g_ap_password
         }, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_sta_ssid_password")
+    @app.route("/api/get_sta_ssid_password", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_sta_ssid_password(request):
         cfg = config.load_wifi_config()
         return make_response({"ssid": cfg[0], "password": cfg[1]}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/set_sta_ssid_password")
+    @app.route("/api/set_sta_ssid_password", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_sta_ssid_password(request):
         ssid = get_request_param(request, "ssid")
         password = get_request_param(request, "password")
         if not ssid:
             return make_response("缺少 ssid 参数", 400, content_type='text/plain; charset=utf-8')
-        # 如果 ssid 为空字符串，视为无效
         if ssid == "":
             return make_response("ssid 不能为空", 400, content_type='text/plain; charset=utf-8')
         config.save_wifi_config(ssid, password)
         return make_response("STA SSID/密码已更新，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/get_udp_recv_port")
+    @app.route("/api/get_udp_recv_port", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_udp_recv_port(request):
         return make_response({"value": config.g_udp_recv_port}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_udp_broadcast_port")
+    @app.route("/api/get_udp_broadcast_port", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_udp_broadcast_port(request):
         return make_response({"value": config.g_udp_broadcast_port}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_udp_poll_interval")
+    @app.route("/api/get_udp_poll_interval", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_udp_poll_interval(request):
         return make_response({"interval": config.g_udp_poll_interval}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_nicknames")
+    @app.route("/api/get_nicknames", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_nicknames(request):
         return make_response(neighbor.load_nicknames(), 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/get_macs")
+    @app.route("/api/get_macs", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_macs(request):
         ap = network.WLAN(network.AP_IF)
         stations = ap.status('stations')
@@ -463,8 +503,9 @@ def setup_routes(app):
             lines.append(f"{mac_str}  昵称:{nick if nick else '未设置'}")
         return make_response("\n".join(lines), 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/list_auth")
+    @app.route("/api/list_auth", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def list_auth(request):
         devices = neighbor.get_auth_devices()
         if not devices:
@@ -474,8 +515,9 @@ def setup_routes(app):
             lines.append(f"{dev['mac']}  IP:{dev['ip']}  昵称:{dev['nickname'] or '未设置'}")
         return make_response("\n".join(lines), 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/memory")
+    @app.route("/api/memory", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_memory(request):
         import gc
         free = gc.mem_free()
@@ -493,8 +535,9 @@ def setup_routes(app):
     # API：邻居表操作
     # ========================================================================
 
-    @app.route("/api/clear_neighbors")
+    @app.route("/api/clear_neighbors", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def clear_neighbors(request):
         nb = neighbor.load_neighbors()
         if not nb:
@@ -502,14 +545,16 @@ def setup_routes(app):
         neighbor.save_neighbors({})
         return make_response("邻居表已清空", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/clear_unauth")
+    @app.route("/api/clear_unauth", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def clear_unauth_api(request):
         count = neighbor.clear_unauth()
         return make_response(f"已清除 {count} 个未注册设备", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/delete_device")
+    @app.route("/api/delete_device", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def delete_device_api(request):
         mac = get_request_param(request, "mac")
         if not mac:
@@ -520,8 +565,9 @@ def setup_routes(app):
         else:
             return make_response("设备不存在", 404, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_nickname")
+    @app.route("/api/set_nickname", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_nickname_api(request):
         mac = get_request_param(request, "mac")
         nickname = get_request_param(request, "nickname")
@@ -537,8 +583,9 @@ def setup_routes(app):
     # 邻居间隔配置
     # ========================================================================
 
-    @app.route("/api/set_neighbor_interval", methods=["POST"])
+    @app.route("/api/set_neighbor_interval", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_neighbor_interval(request):
         interval = get_request_param(request, "interval")
         if not interval:
@@ -552,8 +599,9 @@ def setup_routes(app):
         config.update_neighbor_advertise_interval(val)
         return make_response(f"邻居广播间隔已设为 {val} 秒", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/get_neighbor_interval")
+    @app.route("/api/get_neighbor_interval", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_neighbor_interval(request):
         return make_response({"interval": config.g_neighbor_advertise_interval}, 200, content_type='application/json; charset=utf-8')
 
@@ -561,13 +609,15 @@ def setup_routes(app):
     # API：路由表操作
     # ========================================================================
 
-    @app.route("/api/route_table")
+    @app.route("/api/route_table", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_route_table(request):
         return make_response(route.load_route_table(), 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/route_table_with_nick")
+    @app.route("/api/route_table_with_nick", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_table_with_nick(request):
         table = route.load_route_table()
         nicknames = neighbor.load_nicknames()
@@ -580,8 +630,9 @@ def setup_routes(app):
             }
         return make_response(result, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/route_delete")
+    @app.route("/api/route_delete", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_delete_api(request):
         mac = get_request_param(request, "mac")
         if not mac:
@@ -592,8 +643,9 @@ def setup_routes(app):
         else:
             return make_response("路由不存在", 404, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/set_route_interval", methods=["POST"])
+    @app.route("/api/set_route_interval", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def set_route_interval(request):
         interval = get_request_param(request, "interval")
         if not interval:
@@ -607,13 +659,15 @@ def setup_routes(app):
         config.update_route_advertise_interval(val)
         return make_response(f"路由通告间隔已设为 {val} 秒", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/get_route_interval")
+    @app.route("/api/get_route_interval", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_route_interval(request):
         return make_response({"interval": config.g_route_advertise_interval}, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/route_clear")
+    @app.route("/api/route_clear", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_clear_api(request):
         route.save_route_table({})
         return make_response("路由表已清空", 200, content_type='text/plain; charset=utf-8')
@@ -622,14 +676,16 @@ def setup_routes(app):
     # API：UDP 操作
     # ========================================================================
 
-    @app.route("/api/udp_messages")
+    @app.route("/api/udp_messages", methods=["GET", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def get_udp_messages(request):
         msgs = udp.get_udp_messages()
         return make_response(msgs, 200, content_type='application/json; charset=utf-8')
 
-    @app.route("/api/clear_udp_messages")
+    @app.route("/api/clear_udp_messages", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def clear_udp_messages(request):
         udp.clear_udp_messages()
         return make_response("UDP 消息已清空", 200, content_type='text/plain; charset=utf-8')
@@ -638,8 +694,9 @@ def setup_routes(app):
     # API：UDP 单播
     # ========================================================================
 
-    @app.route("/api/udp_send_ip", methods=["GET", "POST"])
+    @app.route("/api/udp_send_ip", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def udp_send_ip(request):
         target_ip = get_request_param(request, "ip")
         content = get_request_param(request, "content")
@@ -651,8 +708,9 @@ def setup_routes(app):
         else:
             return make_response("发送失败", 500, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/udp_send_ap", methods=["GET", "POST"])
+    @app.route("/api/udp_send_ap", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def udp_send_ap(request):
         ip_tail = get_request_param(request, "ip_tail")
         content = get_request_param(request, "content")
@@ -666,8 +724,9 @@ def setup_routes(app):
         else:
             return make_response("发送失败", 500, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/udp_send_sta", methods=["GET", "POST"])
+    @app.route("/api/udp_send_sta", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def udp_send_sta(request):
         ip_tail = get_request_param(request, "ip_tail")
         content = get_request_param(request, "content")
@@ -683,8 +742,9 @@ def setup_routes(app):
         else:
             return make_response("发送失败", 500, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/send_to_nick", methods=["GET", "POST"])
+    @app.route("/api/send_to_nick", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def send_to_nick(request):
         nickname = get_request_param(request, "nickname")
         content = get_request_param(request, "content")
@@ -715,8 +775,9 @@ def setup_routes(app):
     # API：UDP 路由单播
     # ========================================================================
 
-    @app.route("/api/send_route_message", methods=["GET", "POST"])
+    @app.route("/api/send_route_message", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def send_route_message(request):
         dst_mac = get_request_param(request, "dst_mac")
         cmd_msg = get_request_param(request, "cmd_msg")
@@ -737,8 +798,9 @@ def setup_routes(app):
     # API：UDP 广播
     # ========================================================================
 
-    @app.route("/api/udp_broadcast", methods=["GET", "POST"])
+    @app.route("/api/udp_broadcast", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def udp_broadcast(request):
         content = get_request_param(request, "content")
         if not content:
@@ -749,8 +811,9 @@ def setup_routes(app):
         else:
             return make_response("发送失败", 500, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/udp_broadcast_sta", methods=["GET", "POST"])
+    @app.route("/api/udp_broadcast_sta", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def udp_broadcast_sta(request):
         content = get_request_param(request, "content")
         if not content:
@@ -764,8 +827,9 @@ def setup_routes(app):
         else:
             return make_response("发送失败", 500, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/udp_broadcast_apsta", methods=["GET", "POST"])
+    @app.route("/api/udp_broadcast_apsta", methods=["GET", "POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def udp_broadcast_apsta(request):
         content = get_request_param(request, "content")
         if not content:
@@ -780,14 +844,16 @@ def setup_routes(app):
     # API：UDP 邻居表操作
     # ========================================================================
 
-    @app.route("/api/auth_request")
+    @app.route("/api/auth_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def auth_request(request):
         udp.send_neighbor_register_request("AP")
         return make_response("AP 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/auth_request_sta")
+    @app.route("/api/auth_request_sta", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def auth_request_sta(request):
         prefix = wifi.get_sta_prefix()
         if prefix is None:
@@ -795,16 +861,18 @@ def setup_routes(app):
         udp.send_neighbor_register_request("STA")
         return make_response("STA 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/auth_request_apsta")
+    @app.route("/api/auth_request_apsta", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def auth_request_apsta(request):
         neighbor.ttl_decrement_neighbors()
         udp.send_neighbor_register_request("STA")
         udp.send_neighbor_register_request("AP")
         return make_response("AP+STA 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/neighbor_sta_update_request")
+    @app.route("/api/neighbor_sta_update_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def neighbor_sta_update_request(request):
         sta = network.WLAN(network.STA_IF)
         if not sta.isconnected():
@@ -812,8 +880,9 @@ def setup_routes(app):
         udp.send_neighbor_update_request("STA")
         return make_response("邻居表 STA 更新请求已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/neighbor_ap_update_request")
+    @app.route("/api/neighbor_ap_update_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def neighbor_ap_update_request(request):
         udp.send_neighbor_update_request("AP")
         return make_response("邻居表 AP 更新请求已发送", 200, content_type='text/plain; charset=utf-8')
@@ -822,15 +891,17 @@ def setup_routes(app):
     # API：UDP 路由表操作
     # ========================================================================
 
-    @app.route("/api/route_ap_register_request")
+    @app.route("/api/route_ap_register_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_ap_register_request(request):
         route.route_ttl_decrement()
         udp.send_route_register_request()
         return make_response("AP 路由表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/route_sta_update_request")
+    @app.route("/api/route_sta_update_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_sta_update_request(request):
         sta = network.WLAN(network.STA_IF)
         if not sta.isconnected():
@@ -838,8 +909,9 @@ def setup_routes(app):
         udp.send_route_update_request()
         return make_response("STA 路由表更新请求已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/route_sta_learn_request")
+    @app.route("/api/route_sta_learn_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_sta_learn_request(request):
         sta = network.WLAN(network.STA_IF)
         if not sta.isconnected():
@@ -847,8 +919,9 @@ def setup_routes(app):
         udp.send_route_learn_request()
         return make_response("STA 路由表学习请求已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/route_sta_advertise_request")
+    @app.route("/api/route_sta_advertise_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_sta_advertise_request(request):
         table = route.load_route_table()
         if not table:
@@ -859,8 +932,9 @@ def setup_routes(app):
         udp.send_route_advertise()
         return make_response("STA 路由表通告已发送", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/route_sta_sync_request")
+    @app.route("/api/route_sta_sync_request", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def route_sta_sync_request(request):
         table = route.load_route_table()
         if table:
@@ -877,8 +951,9 @@ def setup_routes(app):
     # API：系统操作
     # ========================================================================
 
-    @app.route("/api/reboot")
+    @app.route("/api/reboot", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def reboot_device(request):
         def _do_reboot():
             time.sleep(0.1)
@@ -886,14 +961,16 @@ def setup_routes(app):
         _thread.start_new_thread(_do_reboot, ())
         return make_response("设备正在重启...", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/config_reload")
+    @app.route("/api/config_reload", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def config_reload(request):
         config.load_all_configs()
         return make_response("配置已重新加载", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/config_reset")
+    @app.route("/api/config_reset", methods=["POST", "OPTIONS"])
     @gc_wrapper
+    @with_cors
     def config_reset(request):
         def _do_reset():
             import os
@@ -909,3 +986,48 @@ def setup_routes(app):
             machine.reset()
         _thread.start_new_thread(_do_reset, ())
         return make_response("正在重置配置并重启...", 200, content_type='text/plain; charset=utf-8')
+
+    # ========================================================================
+    # API：重置引脚配置
+    # ========================================================================
+
+    @app.route("/api/set_reset_pin", methods=["POST", "OPTIONS"])
+    @gc_wrapper
+    @with_cors
+    def set_reset_pin(request):
+        pin_str = get_request_param(request, "pin")
+        if not pin_str:
+            return make_response("缺少 pin 参数", 400, content_type='text/plain; charset=utf-8')
+        try:
+            pin = int(pin_str)
+            if pin < 0 or pin > 21 or pin in range(12, 18):
+                return make_response("引脚无效或为 Flash 专用引脚", 400, content_type='text/plain; charset=utf-8')
+        except:
+            return make_response("引脚必须是整数", 400, content_type='text/plain; charset=utf-8')
+        config.update_reset_pin(pin)
+        return make_response(f"重置引脚已设为 GPIO{pin}，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
+
+    @app.route("/api/set_reset_hold_time", methods=["POST", "OPTIONS"])
+    @gc_wrapper
+    @with_cors
+    def set_reset_hold_time(request):
+        time_str = get_request_param(request, "seconds")
+        if not time_str:
+            return make_response("缺少 seconds 参数", 400, content_type='text/plain; charset=utf-8')
+        try:
+            seconds = int(time_str)
+            if seconds < 2:
+                return make_response("保持时间至少为 2 秒", 400, content_type='text/plain; charset=utf-8')
+        except:
+            return make_response("seconds 必须是整数", 400, content_type='text/plain; charset=utf-8')
+        config.update_reset_hold_time(seconds)
+        return make_response(f"重置保持时间已设为 {seconds} 秒，请重启设备生效。", 200, content_type='text/plain; charset=utf-8')
+
+    @app.route("/api/get_reset_status", methods=["GET", "OPTIONS"])
+    @gc_wrapper
+    @with_cors
+    def get_reset_status(request):
+        return make_response({
+            "pin": config.g_reset_pin,
+            "hold_time": config.g_reset_hold_time
+        }, 200, content_type='application/json; charset=utf-8')

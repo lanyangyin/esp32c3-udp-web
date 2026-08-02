@@ -35,13 +35,13 @@ def custom_udp_processing(payload, sender_ip, dst_mac="00:00:00:00:00:00", direc
 
     # ---------- 精确匹配的无参命令 ----------
     if lower == "hello":
-        send_response(f"Hi {dst_mac}", sender_ip, dst_mac, direct_transmission)
+        send_response(f"Hi {dst_mac}. I am {config.g_device_nickname}", sender_ip, dst_mac, direct_transmission)
         return
     elif lower == "hi":
-        send_response(f"Hello {dst_mac}", sender_ip, dst_mac, direct_transmission)
+        send_response(f"Hello {dst_mac}. I am {config.g_device_nickname}", sender_ip, dst_mac, direct_transmission)
         return
     elif lower == "help":
-        send_response(get_help_info(include_config=True), sender_ip, dst_mac, direct_transmission)
+        send_response(get_help_info(include_config=False), sender_ip, dst_mac, direct_transmission)
         return
     elif lower == "status":
         send_response(get_status_info(), sender_ip, dst_mac, direct_transmission)
@@ -85,6 +85,11 @@ def custom_udp_processing(payload, sender_ip, dst_mac="00:00:00:00:00:00", direc
 
     elif module == "nickname":
         response = handle_nickname_command(parts)
+        send_response(response, sender_ip, dst_mac, direct_transmission)
+
+    elif module == "reset":
+        from reset_commands import handle_reset_command
+        response = handle_reset_command(parts)
         send_response(response, sender_ip, dst_mac, direct_transmission)
 
     elif module == "config":

@@ -85,6 +85,12 @@ DEFAULT_COMMANDS = {
             {"cmd": "sta,set_timeout,<秒数>", "desc": "修改 STA 连接超时（需重启生效）"},
             {"cmd": "sta,help", "desc": "显示 STA 配置模块的帮助信息"},
         ],
+        "reset": [
+            {"cmd": "reset,set_pin,<引脚>", "desc": "设置重置引脚（需重启生效）"},
+            {"cmd": "reset,set_time,<秒数>", "desc": "设置重置保持时间（需重启生效）"},
+            {"cmd": "reset,status", "desc": "查看重置引脚状态"},
+            {"cmd": "reset,help", "desc": "显示重置模块的帮助信息"},
+        ],
         "system": [
             {"cmd": "help", "desc": "显示所有模块的帮助信息"},
             {"cmd": "status", "desc": "显示当前配置信息"},
@@ -118,13 +124,15 @@ API_CATALOG = {
         {"path": "/api/get_self_mac", "method": "GET", "desc": "获取本机 MAC"},
         {"path": "/api/get_led_pin", "method": "GET", "desc": "获取 LED 引脚"},
         {"path": "/api/get_led_status", "method": "GET", "desc": "获取 LED 状态"},
-        {"path": "/api/get_max_udp_messages", "method": "GET", "desc": "获取 UDP 最大消息数"},
         {"path": "/api/get_sta_timeout", "method": "GET", "desc": "获取 STA 超时"},
         {"path": "/api/memory", "method": "GET", "desc": "获取内存使用情况"},
         {"path": "/api/config_get", "method": "GET", "desc": "获取所有配置"},
         {"path": "/api/config_reload", "method": "POST", "desc": "重新加载配置"},
         {"path": "/api/config_reset", "method": "POST", "desc": "重置配置并重启"},
         {"path": "/api/reboot", "method": "POST", "desc": "重启设备"},
+        {"path": "/api/set_reset_pin", "method": "POST", "desc": "设置重置引脚（需重启生效）"},
+        {"path": "/api/set_reset_hold_time", "method": "POST", "desc": "设置重置保持时间（秒，需重启生效）"},
+        {"path": "/api/get_reset_status", "method": "GET", "desc": "获取重置引脚和保持时间"},
     ],
     "ap": [
         {"path": "/api/set_ap_ip", "method": "POST", "desc": "设置 AP IP"},
@@ -141,7 +149,6 @@ API_CATALOG = {
         {"path": "/api/set_udp_recv_port", "method": "POST", "desc": "设置 UDP 接收端口"},
         {"path": "/api/set_udp_broadcast_port", "method": "POST", "desc": "设置 UDP 广播端口"},
         {"path": "/api/set_udp_poll_interval", "method": "POST", "desc": "设置 UDP 轮询间隔"},
-        {"path": "/api/set_max_udp_messages", "method": "POST", "desc": "设置 UDP 最大消息数"},
         {"path": "/api/udp_messages", "method": "GET", "desc": "获取 UDP 消息列表"},
         {"path": "/api/clear_udp_messages", "method": "POST", "desc": "清空 UDP 消息列表"},
         {"path": "/api/udp_send_ip", "method": "POST", "desc": "发送 UDP 到指定 IP"},
@@ -210,10 +217,13 @@ BROADCAST_TTL = 2
 
 UDP_RECV_BUFFER = 2048
 
+DEFAULT_RESET_HOLD_TIME = 8   # 秒
+
 # ============================================================================
 # LED 与硬件
 # ============================================================================
 DEFAULT_LED_PIN = 8
+DEFAULT_RESET_PIN = 10
 
 # ============================================================================
 # 超时与间隔
@@ -225,11 +235,6 @@ UDP_RESPONSE_SLEEP = 0.05          # 分段发送间隔（秒）
 CACHE_CLEAN_INTERVAL = 30          # 缓存清理间隔（秒）
 DEFAULT_IR_BAUDRATE = 9600
 DEFAULT_IR_TIMEOUT = 2000   # 毫秒
-
-# ============================================================================
-# UDP 消息历史
-# ============================================================================
-DEFAULT_MAX_UDP_MESSAGES = 5
 
 # ============================================================================
 # MAC 地址特殊值
