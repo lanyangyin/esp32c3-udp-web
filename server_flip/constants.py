@@ -100,6 +100,94 @@ DEFAULT_COMMANDS = {
         ],
     }
 }
+
+# ========================================================================
+# API 清单（用于 /api 和 /api/get_api）
+# ========================================================================
+
+API_CATALOG = {
+    "system": [
+        {"path": "/api/get_ap_status", "method": "GET", "desc": "获取 AP 状态"},
+        {"path": "/api/get_sta_status", "method": "GET", "desc": "获取 STA 状态"},
+        {"path": "/api/get_ap_ssid_password", "method": "GET", "desc": "获取 AP SSID 和密码"},
+        {"path": "/api/get_sta_ssid_password", "method": "GET", "desc": "获取 STA SSID 和密码"},
+        {"path": "/api/set_sta_ssid_password", "method": "POST", "desc": "设置 STA SSID 和密码"},
+        {"path": "/api/get_udp_recv_port", "method": "GET", "desc": "获取 UDP 接收端口"},
+        {"path": "/api/get_udp_broadcast_port", "method": "GET", "desc": "获取 UDP 广播端口"},
+        {"path": "/api/get_udp_poll_interval", "method": "GET", "desc": "获取 UDP 轮询间隔"},
+        {"path": "/api/get_self_mac", "method": "GET", "desc": "获取本机 MAC"},
+        {"path": "/api/get_led_pin", "method": "GET", "desc": "获取 LED 引脚"},
+        {"path": "/api/get_led_status", "method": "GET", "desc": "获取 LED 状态"},
+        {"path": "/api/get_max_udp_messages", "method": "GET", "desc": "获取 UDP 最大消息数"},
+        {"path": "/api/get_sta_timeout", "method": "GET", "desc": "获取 STA 超时"},
+        {"path": "/api/memory", "method": "GET", "desc": "获取内存使用情况"},
+        {"path": "/api/config_get", "method": "GET", "desc": "获取所有配置"},
+        {"path": "/api/config_reload", "method": "POST", "desc": "重新加载配置"},
+        {"path": "/api/config_reset", "method": "POST", "desc": "重置配置并重启"},
+        {"path": "/api/reboot", "method": "POST", "desc": "重启设备"},
+    ],
+    "ap": [
+        {"path": "/api/set_ap_ip", "method": "POST", "desc": "设置 AP IP"},
+        {"path": "/api/set_ap_ssid_password", "method": "POST", "desc": "设置 AP SSID 和密码"},
+        {"path": "/api/set_ap_netmask", "method": "POST", "desc": "设置 AP 子网掩码"},
+        {"path": "/api/set_ap_gateway", "method": "POST", "desc": "设置 AP 网关"},
+        {"path": "/api/reset_ap_config", "method": "POST", "desc": "重置 AP 配置"},
+        {"path": "/api/set_ap_net_segment", "method": "POST", "desc": "设置 AP 网段"},
+    ],
+    "sta": [
+        {"path": "/api/set_sta_timeout", "method": "POST", "desc": "设置 STA 超时"},
+    ],
+    "udp": [
+        {"path": "/api/set_udp_recv_port", "method": "POST", "desc": "设置 UDP 接收端口"},
+        {"path": "/api/set_udp_broadcast_port", "method": "POST", "desc": "设置 UDP 广播端口"},
+        {"path": "/api/set_udp_poll_interval", "method": "POST", "desc": "设置 UDP 轮询间隔"},
+        {"path": "/api/set_max_udp_messages", "method": "POST", "desc": "设置 UDP 最大消息数"},
+        {"path": "/api/udp_messages", "method": "GET", "desc": "获取 UDP 消息列表"},
+        {"path": "/api/clear_udp_messages", "method": "POST", "desc": "清空 UDP 消息列表"},
+        {"path": "/api/udp_send_ip", "method": "POST", "desc": "发送 UDP 到指定 IP"},
+        {"path": "/api/udp_send_ap", "method": "POST", "desc": "发送 UDP 到 AP 网段 IP 尾号"},
+        {"path": "/api/udp_send_sta", "method": "POST", "desc": "发送 UDP 到 STA 网段 IP 尾号"},
+        {"path": "/api/send_to_nick", "method": "POST", "desc": "按昵称发送 UDP"},
+        {"path": "/api/send_route_message", "method": "POST", "desc": "发送路由消息"},
+        {"path": "/api/udp_broadcast", "method": "POST", "desc": "AP 广播"},
+        {"path": "/api/udp_broadcast_sta", "method": "POST", "desc": "STA 广播"},
+        {"path": "/api/udp_broadcast_apsta", "method": "POST", "desc": "AP+STA 广播"},
+    ],
+    "neighbor": [
+        {"path": "/api/get_nicknames", "method": "GET", "desc": "获取所有昵称"},
+        {"path": "/api/get_macs", "method": "GET", "desc": "获取已连接设备的 MAC 列表"},
+        {"path": "/api/list_auth", "method": "GET", "desc": "获取已认证设备列表"},
+        {"path": "/api/clear_neighbors", "method": "POST", "desc": "清空邻居表"},
+        {"path": "/api/clear_unauth", "method": "POST", "desc": "清除未认证设备"},
+        {"path": "/api/delete_device", "method": "POST", "desc": "删除设备"},
+        {"path": "/api/set_nickname", "method": "POST", "desc": "设置设备昵称"},
+        {"path": "/api/set_self_nickname", "method": "POST", "desc": "设置本机昵称"},
+        {"path": "/api/set_neighbor_interval", "method": "POST", "desc": "设置邻居广播间隔"},
+        {"path": "/api/get_neighbor_interval", "method": "GET", "desc": "获取邻居广播间隔"},
+        {"path": "/api/auth_request", "method": "POST", "desc": "发送 AP 邻居注册请求"},
+        {"path": "/api/auth_request_sta", "method": "POST", "desc": "发送 STA 邻居注册请求"},
+        {"path": "/api/auth_request_apsta", "method": "POST", "desc": "发送 AP+STA 邻居注册请求"},
+        {"path": "/api/neighbor_sta_update_request", "method": "POST", "desc": "发送 STA 邻居更新请求"},
+        {"path": "/api/neighbor_ap_update_request", "method": "POST", "desc": "发送 AP 邻居更新请求"},
+    ],
+    "route": [
+        {"path": "/api/route_table", "method": "GET", "desc": "获取路由表"},
+        {"path": "/api/route_table_with_nick", "method": "GET", "desc": "获取路由表（含昵称）"},
+        {"path": "/api/route_delete", "method": "POST", "desc": "删除路由"},
+        {"path": "/api/set_route_interval", "method": "POST", "desc": "设置路由通告间隔"},
+        {"path": "/api/get_route_interval", "method": "GET", "desc": "获取路由通告间隔"},
+        {"path": "/api/route_clear", "method": "POST", "desc": "清空路由表"},
+        {"path": "/api/route_ap_register_request", "method": "POST", "desc": "发送 AP 路由注册请求"},
+        {"path": "/api/route_sta_update_request", "method": "POST", "desc": "发送 STA 路由更新请求"},
+        {"path": "/api/route_sta_learn_request", "method": "POST", "desc": "发送 STA 路由学习请求"},
+        {"path": "/api/route_sta_advertise_request", "method": "POST", "desc": "发送 STA 路由通告"},
+        {"path": "/api/route_sta_sync_request", "method": "POST", "desc": "发送 STA 路由同步请求"},
+    ],
+    "led": [
+        {"path": "/api/set_led_pin", "method": "POST", "desc": "设置 LED 引脚"},
+    ],
+}
+
 # ============================================================================
 # 路由与邻居表
 # ============================================================================
