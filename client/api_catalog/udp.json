@@ -1,15 +1,67 @@
 [
-    {"path": "/api/set_udp_recv_port", "method": "POST", "desc": "设置 UDP 接收端口"},
-    {"path": "/api/set_udp_broadcast_port", "method": "POST", "desc": "设置 UDP 广播端口"},
-    {"path": "/api/set_udp_poll_interval", "method": "POST", "desc": "设置 UDP 轮询间隔"},
-    {"path": "/api/udp_messages", "method": "GET", "desc": "获取 UDP 消息列表"},
-    {"path": "/api/clear_udp_messages", "method": "POST", "desc": "清空 UDP 消息列表"},
-    {"path": "/api/udp_send_ip", "method": "POST", "desc": "发送 UDP 到指定 IP"},
-    {"path": "/api/udp_send_ap", "method": "POST", "desc": "发送 UDP 到 AP 网段 IP 尾号"},
-    {"path": "/api/udp_send_sta", "method": "POST", "desc": "发送 UDP 到 STA 网段 IP 尾号"},
-    {"path": "/api/send_to_nick", "method": "POST", "desc": "按昵称发送 UDP"},
-    {"path": "/api/send_route_message", "method": "POST", "desc": "发送路由消息"},
-    {"path": "/api/udp_broadcast", "method": "POST", "desc": "AP 广播"},
-    {"path": "/api/udp_broadcast_sta", "method": "POST", "desc": "STA 广播"},
-    {"path": "/api/udp_broadcast_apsta", "method": "POST", "desc": "AP+STA 广播"}
+  {
+    "path": "/api/set_udp_recv_port",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e UDP \u63a5\u6536\u7aef\u53e3"
+  },
+  {
+    "path": "/api/set_udp_broadcast_port",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e UDP \u5e7f\u64ad\u7aef\u53e3"
+  },
+  {
+    "path": "/api/set_udp_poll_interval",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e UDP \u8f6e\u8be2\u95f4\u9694"
+  },
+  {
+    "path": "/api/udp_messages",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 UDP \u6d88\u606f\u5217\u8868"
+  },
+  {
+    "path": "/api/clear_udp_messages",
+    "method": "POST",
+    "desc": "\u6e05\u7a7a UDP \u6d88\u606f\u5217\u8868"
+  },
+  {
+    "path": "/api/udp_send_ip",
+    "method": "POST",
+    "desc": "\u53d1\u9001 UDP \u5230\u6307\u5b9a IP"
+  },
+  {
+    "path": "/api/udp_send_ap",
+    "method": "POST",
+    "desc": "\u53d1\u9001 UDP \u5230 AP \u7f51\u6bb5 IP \u5c3e\u53f7"
+  },
+  {
+    "path": "/api/udp_send_sta",
+    "method": "POST",
+    "desc": "\u53d1\u9001 UDP \u5230 STA \u7f51\u6bb5 IP \u5c3e\u53f7"
+  },
+  {
+    "path": "/api/send_to_nick",
+    "method": "POST",
+    "desc": "\u6309\u6635\u79f0\u53d1\u9001 UDP"
+  },
+  {
+    "path": "/api/send_route_message",
+    "method": "POST",
+    "desc": "\u53d1\u9001\u8def\u7531\u6d88\u606f"
+  },
+  {
+    "path": "/api/udp_broadcast",
+    "method": "POST",
+    "desc": "AP \u5e7f\u64ad"
+  },
+  {
+    "path": "/api/udp_broadcast_sta",
+    "method": "POST",
+    "desc": "STA \u5e7f\u64ad"
+  },
+  {
+    "path": "/api/udp_broadcast_apsta",
+    "method": "POST",
+    "desc": "AP+STA \u5e7f\u64ad"
+  }
 ]

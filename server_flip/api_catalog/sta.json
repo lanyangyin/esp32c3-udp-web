@@ -1,3 +1,7 @@
 [
-    {"path": "/api/set_sta_timeout", "method": "POST", "desc": "设置 STA 超时"}
+  {
+    "path": "/api/set_sta_timeout",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e STA \u8d85\u65f6"
+  }
 ]

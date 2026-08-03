@@ -1,8 +1,26 @@
 [
-    {"cmd": "ap,set_ssid,<新SSID>", "desc": "修改 AP 的 SSID（需重启生效）"},
-    {"cmd": "ap,set_password,<新密码>", "desc": "修改 AP 的 Wi-Fi 密码（需重启生效）"},
-    {"cmd": "ap,set_ip,<IP>", "desc": "修改 AP IP 地址（需 reload 生效）"},
-    {"cmd": "ap,set_netmask,<掩码>", "desc": "修改 AP 子网掩码（需 reload 生效）"},
-    {"cmd": "ap,set_gateway,<网关>", "desc": "修改 AP 网关（需 reload 生效）"},
-    {"cmd": "ap,help", "desc": "显示 AP 配置模块的帮助信息"}
+  {
+    "cmd": "ap,set_ssid,<\u65b0SSID>",
+    "desc": "\u4fee\u6539 AP \u7684 SSID\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "ap,set_password,<\u65b0\u5bc6\u7801>",
+    "desc": "\u4fee\u6539 AP \u7684 Wi-Fi \u5bc6\u7801\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "ap,set_ip,<IP>",
+    "desc": "\u4fee\u6539 AP IP \u5730\u5740\uff08\u9700 reload \u751f\u6548\uff09"
+  },
+  {
+    "cmd": "ap,set_netmask,<\u63a9\u7801>",
+    "desc": "\u4fee\u6539 AP \u5b50\u7f51\u63a9\u7801\uff08\u9700 reload \u751f\u6548\uff09"
+  },
+  {
+    "cmd": "ap,set_gateway,<\u7f51\u5173>",
+    "desc": "\u4fee\u6539 AP \u7f51\u5173\uff08\u9700 reload \u751f\u6548\uff09"
+  },
+  {
+    "cmd": "ap,help",
+    "desc": "\u663e\u793a AP \u914d\u7f6e\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
 ]

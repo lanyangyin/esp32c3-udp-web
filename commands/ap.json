@@ -1,8 +1,0 @@
-[
-    {"cmd": "ap,set_ssid,<新SSID>", "desc": "修改 AP 的 SSID（需重启生效）"},
-    {"cmd": "ap,set_password,<新密码>", "desc": "修改 AP 的 Wi-Fi 密码（需重启生效）"},
-    {"cmd": "ap,set_ip,<IP>", "desc": "修改 AP IP 地址（需 reload 生效）"},
-    {"cmd": "ap,set_netmask,<掩码>", "desc": "修改 AP 子网掩码（需 reload 生效）"},
-    {"cmd": "ap,set_gateway,<网关>", "desc": "修改 AP 网关（需 reload 生效）"},
-    {"cmd": "ap,help", "desc": "显示 AP 配置模块的帮助信息"}
-]

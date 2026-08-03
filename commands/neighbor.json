@@ -1,5 +1,0 @@
-[
-    {"cmd": "neighbor,list", "desc": "显示当前邻居表"},
-    {"cmd": "neighbor,set_interval,<秒数>", "desc": "修改邻居广播间隔（默认120秒）"},
-    {"cmd": "neighbor,help", "desc": "显示邻居模块的帮助信息"}
-]

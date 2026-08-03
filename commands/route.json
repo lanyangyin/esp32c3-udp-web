@@ -1,5 +1,0 @@
-[
-    {"cmd": "route,list", "desc": "显示当前路由表"},
-    {"cmd": "route,set_interval,<秒数>", "desc": "修改路由通告间隔（默认120秒）"},
-    {"cmd": "route,help", "desc": "显示路由模块的帮助信息"}
-]

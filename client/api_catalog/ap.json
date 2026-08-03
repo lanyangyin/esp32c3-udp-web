@@ -1,8 +1,32 @@
 [
-    {"path": "/api/set_ap_ip", "method": "POST", "desc": "设置 AP IP"},
-    {"path": "/api/set_ap_ssid_password", "method": "POST", "desc": "设置 AP SSID 和密码"},
-    {"path": "/api/set_ap_netmask", "method": "POST", "desc": "设置 AP 子网掩码"},
-    {"path": "/api/set_ap_gateway", "method": "POST", "desc": "设置 AP 网关"},
-    {"path": "/api/reset_ap_config", "method": "POST", "desc": "重置 AP 配置"},
-    {"path": "/api/set_ap_net_segment", "method": "POST", "desc": "设置 AP 网段"}
+  {
+    "path": "/api/set_ap_ip",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e AP IP"
+  },
+  {
+    "path": "/api/set_ap_ssid_password",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e AP SSID \u548c\u5bc6\u7801"
+  },
+  {
+    "path": "/api/set_ap_netmask",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e AP \u5b50\u7f51\u63a9\u7801"
+  },
+  {
+    "path": "/api/set_ap_gateway",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e AP \u7f51\u5173"
+  },
+  {
+    "path": "/api/reset_ap_config",
+    "method": "POST",
+    "desc": "\u91cd\u7f6e AP \u914d\u7f6e"
+  },
+  {
+    "path": "/api/set_ap_net_segment",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e AP \u7f51\u6bb5"
+  }
 ]

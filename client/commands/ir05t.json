@@ -1,19 +1,70 @@
 [
-    {"cmd": "ir05t,list_devices", "desc": "列出所有 IR 设备"},
-    {"cmd": "ir05t,add,<设备名>,<tx_pin>,<rx_pin>[,<baudrate>[,<timeout>]]", "desc": "添加并初始化 IR 设备"},
-    {"cmd": "ir05t,delete,<设备名>", "desc": "删除 IR 设备"},
-    {"cmd": "ir05t,set_pin,<设备名>,<tx_pin>,<rx_pin>", "desc": "修改设备引脚"},
-    {"cmd": "ir05t,list,<设备名>", "desc": "列出设备下所有已学习的数据"},
-    {"cmd": "ir05t,get,<设备名>,<数据名>", "desc": "获取指定数据内容"},
-    {"cmd": "ir05t,learn,<设备名>", "desc": "通用学习（不保存）"},
-    {"cmd": "ir05t,learn_save,<设备名>,<数据名>", "desc": "学习并保存数据"},
-    {"cmd": "ir05t,send,<设备名>,<数据名>", "desc": "发送已保存的数据"},
-    {"cmd": "ir05t,delete_data,<设备名>,<数据名>", "desc": "删除指定数据"},
-    {"cmd": "ir05t,learn_channel,<设备名>,<1~5>", "desc": "通道学习"},
-    {"cmd": "ir05t,send_channel,<设备名>,<1~5>", "desc": "发送通道"},
-    {"cmd": "ir05t,send_raw,<设备名>,<hex数据>", "desc": "发送原始数据"},
-    {"cmd": "ir05t,set_baud,<设备名>,<波特率>", "desc": "修改波特率"},
-    {"cmd": "ir05t,set_timeout,<设备名>,<毫秒>", "desc": "修改超时"},
-    {"cmd": "ir05t,set_header,<设备名>,<0xA0~0xFE>", "desc": "修改帧头"},
-    {"cmd": "ir05t,help", "desc": "显示 IR05T 模块的帮助信息"}
+  {
+    "cmd": "ir05t,list_devices",
+    "desc": "\u5217\u51fa\u6240\u6709 IR \u8bbe\u5907"
+  },
+  {
+    "cmd": "ir05t,add,<\u8bbe\u5907\u540d>,<tx_pin>,<rx_pin>[,<baudrate>[,<timeout>]]",
+    "desc": "\u6dfb\u52a0\u5e76\u521d\u59cb\u5316 IR \u8bbe\u5907"
+  },
+  {
+    "cmd": "ir05t,delete,<\u8bbe\u5907\u540d>",
+    "desc": "\u5220\u9664 IR \u8bbe\u5907"
+  },
+  {
+    "cmd": "ir05t,set_pin,<\u8bbe\u5907\u540d>,<tx_pin>,<rx_pin>",
+    "desc": "\u4fee\u6539\u8bbe\u5907\u5f15\u811a"
+  },
+  {
+    "cmd": "ir05t,list,<\u8bbe\u5907\u540d>",
+    "desc": "\u5217\u51fa\u8bbe\u5907\u4e0b\u6240\u6709\u5df2\u5b66\u4e60\u7684\u6570\u636e"
+  },
+  {
+    "cmd": "ir05t,get,<\u8bbe\u5907\u540d>,<\u6570\u636e\u540d>",
+    "desc": "\u83b7\u53d6\u6307\u5b9a\u6570\u636e\u5185\u5bb9"
+  },
+  {
+    "cmd": "ir05t,learn,<\u8bbe\u5907\u540d>",
+    "desc": "\u901a\u7528\u5b66\u4e60\uff08\u4e0d\u4fdd\u5b58\uff09"
+  },
+  {
+    "cmd": "ir05t,learn_save,<\u8bbe\u5907\u540d>,<\u6570\u636e\u540d>",
+    "desc": "\u5b66\u4e60\u5e76\u4fdd\u5b58\u6570\u636e"
+  },
+  {
+    "cmd": "ir05t,send,<\u8bbe\u5907\u540d>,<\u6570\u636e\u540d>",
+    "desc": "\u53d1\u9001\u5df2\u4fdd\u5b58\u7684\u6570\u636e"
+  },
+  {
+    "cmd": "ir05t,delete_data,<\u8bbe\u5907\u540d>,<\u6570\u636e\u540d>",
+    "desc": "\u5220\u9664\u6307\u5b9a\u6570\u636e"
+  },
+  {
+    "cmd": "ir05t,learn_channel,<\u8bbe\u5907\u540d>,<1~5>",
+    "desc": "\u901a\u9053\u5b66\u4e60"
+  },
+  {
+    "cmd": "ir05t,send_channel,<\u8bbe\u5907\u540d>,<1~5>",
+    "desc": "\u53d1\u9001\u901a\u9053"
+  },
+  {
+    "cmd": "ir05t,send_raw,<\u8bbe\u5907\u540d>,<hex\u6570\u636e>",
+    "desc": "\u53d1\u9001\u539f\u59cb\u6570\u636e"
+  },
+  {
+    "cmd": "ir05t,set_baud,<\u8bbe\u5907\u540d>,<\u6ce2\u7279\u7387>",
+    "desc": "\u4fee\u6539\u6ce2\u7279\u7387"
+  },
+  {
+    "cmd": "ir05t,set_timeout,<\u8bbe\u5907\u540d>,<\u6beb\u79d2>",
+    "desc": "\u4fee\u6539\u8d85\u65f6"
+  },
+  {
+    "cmd": "ir05t,set_header,<\u8bbe\u5907\u540d>,<0xA0~0xFE>",
+    "desc": "\u4fee\u6539\u5e27\u5934"
+  },
+  {
+    "cmd": "ir05t,help",
+    "desc": "\u663e\u793a IR05T \u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
 ]

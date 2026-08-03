@@ -1,6 +1,18 @@
 [
-    {"cmd": "reset,set_pin,<引脚>", "desc": "设置重置引脚（需重启生效）"},
-    {"cmd": "reset,set_time,<秒数>", "desc": "设置重置保持时间（需重启生效）"},
-    {"cmd": "reset,status", "desc": "查看重置引脚状态"},
-    {"cmd": "reset,help", "desc": "显示重置模块的帮助信息"}
+  {
+    "cmd": "reset,set_pin,<\u5f15\u811a>",
+    "desc": "\u8bbe\u7f6e\u91cd\u7f6e\u5f15\u811a\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "reset,set_time,<\u79d2\u6570>",
+    "desc": "\u8bbe\u7f6e\u91cd\u7f6e\u4fdd\u6301\u65f6\u95f4\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "reset,status",
+    "desc": "\u67e5\u770b\u91cd\u7f6e\u5f15\u811a\u72b6\u6001"
+  },
+  {
+    "cmd": "reset,help",
+    "desc": "\u663e\u793a\u91cd\u7f6e\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
 ]

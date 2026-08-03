@@ -1,6 +1,18 @@
 [
-    {"cmd": "sta,set_ssid,<SSID>", "desc": "修改 STA 目标 AP 的 SSID（需重启生效）"},
-    {"cmd": "sta,set_password,<密码>", "desc": "修改 STA 目标 AP 的密码（需重启生效）"},
-    {"cmd": "sta,set_timeout,<秒数>", "desc": "修改 STA 连接超时（需重启生效）"},
-    {"cmd": "sta,help", "desc": "显示 STA 配置模块的帮助信息"}
+  {
+    "cmd": "sta,set_ssid,<SSID>",
+    "desc": "\u4fee\u6539 STA \u76ee\u6807 AP \u7684 SSID\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "sta,set_password,<\u5bc6\u7801>",
+    "desc": "\u4fee\u6539 STA \u76ee\u6807 AP \u7684\u5bc6\u7801\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "sta,set_timeout,<\u79d2\u6570>",
+    "desc": "\u4fee\u6539 STA \u8fde\u63a5\u8d85\u65f6\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "sta,help",
+    "desc": "\u663e\u793a STA \u914d\u7f6e\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
 ]

@@ -16,7 +16,7 @@ from constants import (
     UDP_RESPONSE_MAX_PACKET,
     UDP_RESPONSE_SLEEP,
     DEFAULT_ROUTE_TTL,
-    NEIGHBOR_TTL_MAX, BROADCAST_TTL, DEBUG_FRAGMENT
+    BROADCAST_TTL
 )
 
 # =============================================================================

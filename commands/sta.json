@@ -1,6 +1,0 @@
-[
-    {"cmd": "sta,set_ssid,<SSID>", "desc": "修改 STA 目标 AP 的 SSID（需重启生效）"},
-    {"cmd": "sta,set_password,<密码>", "desc": "修改 STA 目标 AP 的密码（需重启生效）"},
-    {"cmd": "sta,set_timeout,<秒数>", "desc": "修改 STA 连接超时（需重启生效）"},
-    {"cmd": "sta,help", "desc": "显示 STA 配置模块的帮助信息"}
-]

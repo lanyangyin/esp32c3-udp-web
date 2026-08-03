@@ -1,22 +1,102 @@
 [
-    {"path": "/api/get_ap_status", "method": "GET", "desc": "获取 AP 状态"},
-    {"path": "/api/get_sta_status", "method": "GET", "desc": "获取 STA 状态"},
-    {"path": "/api/get_ap_ssid_password", "method": "GET", "desc": "获取 AP SSID 和密码"},
-    {"path": "/api/get_sta_ssid_password", "method": "GET", "desc": "获取 STA SSID 和密码"},
-    {"path": "/api/set_sta_ssid_password", "method": "POST", "desc": "设置 STA SSID 和密码"},
-    {"path": "/api/get_udp_recv_port", "method": "GET", "desc": "获取 UDP 接收端口"},
-    {"path": "/api/get_udp_broadcast_port", "method": "GET", "desc": "获取 UDP 广播端口"},
-    {"path": "/api/get_udp_poll_interval", "method": "GET", "desc": "获取 UDP 轮询间隔"},
-    {"path": "/api/get_self_mac", "method": "GET", "desc": "获取本机 MAC"},
-    {"path": "/api/get_led_pin", "method": "GET", "desc": "获取 LED 引脚"},
-    {"path": "/api/get_led_status", "method": "GET", "desc": "获取 LED 状态"},
-    {"path": "/api/get_sta_timeout", "method": "GET", "desc": "获取 STA 超时"},
-    {"path": "/api/memory", "method": "GET", "desc": "获取内存使用情况"},
-    {"path": "/api/config_get", "method": "GET", "desc": "获取所有配置"},
-    {"path": "/api/config_reload", "method": "POST", "desc": "重新加载配置"},
-    {"path": "/api/config_reset", "method": "POST", "desc": "重置配置并重启"},
-    {"path": "/api/reboot", "method": "POST", "desc": "重启设备"},
-    {"path": "/api/set_reset_pin", "method": "POST", "desc": "设置重置引脚（需重启生效）"},
-    {"path": "/api/set_reset_hold_time", "method": "POST", "desc": "设置重置保持时间（秒，需重启生效）"},
-    {"path": "/api/get_reset_status", "method": "GET", "desc": "获取重置引脚和保持时间"}
+  {
+    "path": "/api/get_ap_status",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 AP \u72b6\u6001"
+  },
+  {
+    "path": "/api/get_sta_status",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 STA \u72b6\u6001"
+  },
+  {
+    "path": "/api/get_ap_ssid_password",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 AP SSID \u548c\u5bc6\u7801"
+  },
+  {
+    "path": "/api/get_sta_ssid_password",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 STA SSID \u548c\u5bc6\u7801"
+  },
+  {
+    "path": "/api/set_sta_ssid_password",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e STA SSID \u548c\u5bc6\u7801"
+  },
+  {
+    "path": "/api/get_udp_recv_port",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 UDP \u63a5\u6536\u7aef\u53e3"
+  },
+  {
+    "path": "/api/get_udp_broadcast_port",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 UDP \u5e7f\u64ad\u7aef\u53e3"
+  },
+  {
+    "path": "/api/get_udp_poll_interval",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 UDP \u8f6e\u8be2\u95f4\u9694"
+  },
+  {
+    "path": "/api/get_self_mac",
+    "method": "GET",
+    "desc": "\u83b7\u53d6\u672c\u673a MAC"
+  },
+  {
+    "path": "/api/get_led_pin",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 LED \u5f15\u811a"
+  },
+  {
+    "path": "/api/get_led_status",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 LED \u72b6\u6001"
+  },
+  {
+    "path": "/api/get_sta_timeout",
+    "method": "GET",
+    "desc": "\u83b7\u53d6 STA \u8d85\u65f6"
+  },
+  {
+    "path": "/api/memory",
+    "method": "GET",
+    "desc": "\u83b7\u53d6\u5185\u5b58\u4f7f\u7528\u60c5\u51b5"
+  },
+  {
+    "path": "/api/config_get",
+    "method": "GET",
+    "desc": "\u83b7\u53d6\u6240\u6709\u914d\u7f6e"
+  },
+  {
+    "path": "/api/config_reload",
+    "method": "POST",
+    "desc": "\u91cd\u65b0\u52a0\u8f7d\u914d\u7f6e"
+  },
+  {
+    "path": "/api/config_reset",
+    "method": "POST",
+    "desc": "\u91cd\u7f6e\u914d\u7f6e\u5e76\u91cd\u542f"
+  },
+  {
+    "path": "/api/reboot",
+    "method": "POST",
+    "desc": "\u91cd\u542f\u8bbe\u5907"
+  },
+  {
+    "path": "/api/set_reset_pin",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e\u91cd\u7f6e\u5f15\u811a\uff08\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "path": "/api/set_reset_hold_time",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e\u91cd\u7f6e\u4fdd\u6301\u65f6\u95f4\uff08\u79d2\uff0c\u9700\u91cd\u542f\u751f\u6548\uff09"
+  },
+  {
+    "path": "/api/get_reset_status",
+    "method": "GET",
+    "desc": "\u83b7\u53d6\u91cd\u7f6e\u5f15\u811a\u548c\u4fdd\u6301\u65f6\u95f4"
+  }
 ]

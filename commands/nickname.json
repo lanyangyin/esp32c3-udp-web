@@ -1,4 +1,0 @@
-[
-    {"cmd": "nickname,set,<新昵称>", "desc": "修改设备昵称（立即生效）"},
-    {"cmd": "nickname,help", "desc": "显示昵称模块的帮助信息"}
-]
