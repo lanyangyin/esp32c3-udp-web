@@ -4,9 +4,8 @@
 import json
 import os
 import time
-import _thread
 import machine
-from util import mac_to_str, get_mac_short, get_default_nickname, get_self_mac
+from util import mac_to_str, get_mac_short, get_default_nickname, get_self_mac, get_file_lock, atomic_write
 from constants import (
     DEFAULT_AP_IP, DEFAULT_AP_SUBNET,
     DEFAULT_STA_SSID, DEFAULT_STA_PASSWORD, DEFAULT_AP_SSID_PREFIX,
@@ -17,6 +16,7 @@ from constants import (
     DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL,
     DEFAULT_IR_BAUDRATE, DEFAULT_IR_TIMEOUT, DEFAULT_RESET_PIN, DEFAULT_RESET_HOLD_TIME
 )
+
 
 # =============================================================================
 # 文件路径常量
@@ -112,8 +112,14 @@ def load_wifi_config():
         ssid = ""
         password = ""
         # 创建空配置
-        with open(WIFI_CONFIG_FILE, "w") as f:
-            json.dump(DEFAULT_STA_CONFIG, f)
+        try:
+            lock = get_file_lock(WIFI_CONFIG_FILE)
+            with lock:
+                atomic_write(WIFI_CONFIG_FILE, DEFAULT_STA_CONFIG)
+        except Exception as e:
+            print(f"[CONFIG] 创建默认WiFi配置失败: {e}")
+        # with open(WIFI_CONFIG_FILE, "w") as f:
+        #     json.dump(DEFAULT_STA_CONFIG, f)
     print(f"[CONFIG] STA 配置: SSID='{ssid}'")
     return ssid, password
 
@@ -122,8 +128,12 @@ def save_wifi_config(ssid, password):
     global  g_sta_ssid, g_sta_password
     try:
         data = {"ssid": ssid, "password": password}
-        with open(WIFI_CONFIG_FILE, "w") as f:
-            json.dump(data, f)
+        lock = get_file_lock(WIFI_CONFIG_FILE)
+        with lock:  # MicroPython 支持上下文管理器
+            # 写入操作（见下文原子写）
+            atomic_write(WIFI_CONFIG_FILE, data)
+        # with open(WIFI_CONFIG_FILE, "w") as f:
+        #     json.dump(data, f)
         g_sta_ssid = ssid
         g_sta_password = password
         print(f"[CONFIG] STA 配置已保存: SSID='{ssid}'")
@@ -167,8 +177,14 @@ def load_system_config():
                 need_save = True
         if need_save:
             # 写回（补全后的）
-            with open(SYSTEM_CONFIG_FILE, "w") as f:
-                json.dump(config, f)
+            try:
+                lock = get_file_lock(SYSTEM_CONFIG_FILE)
+                with lock:
+                    atomic_write(SYSTEM_CONFIG_FILE, config)
+            except Exception as e:
+                print(f"[CONFIG] 创建默认系统配置失败: {e}")
+            # with open(SYSTEM_CONFIG_FILE, "w") as f:
+            #     json.dump(config, f)
         return config
     except:
         # 文件不存在，创建默认，并生成 device_nickname
@@ -179,8 +195,12 @@ def load_system_config():
 def save_system_config(config):
     """保存系统配置，成功返回 True，失败返回 False"""
     try:
-        with open(SYSTEM_CONFIG_FILE, "w") as f:
-            json.dump(config, f)
+        lock = get_file_lock(SYSTEM_CONFIG_FILE)
+        with lock:  # MicroPython 支持上下文管理器
+            # 写入操作（见下文原子写）
+            atomic_write(SYSTEM_CONFIG_FILE, config)
+        # with open(SYSTEM_CONFIG_FILE, "w") as f:
+        #     json.dump(config, f)
         return True
     except Exception as e:
         print(f"[CONFIG] 保存系统配置失败: {e}")
@@ -290,8 +310,12 @@ def load_neighbors():
 def save_neighbors(neighbors):
     """保存邻居表（全量覆盖）"""
     try:
-        with open(NEIGHBORS_FILE, "w") as f:
-            json.dump(neighbors, f)
+        lock = get_file_lock(NEIGHBORS_FILE)
+        with lock:  # MicroPython 支持上下文管理器
+            # 写入操作（见下文原子写）
+            atomic_write(NEIGHBORS_FILE, neighbors)
+        # with open(NEIGHBORS_FILE, "w") as f:
+        #     json.dump(neighbors, f)
         return True
     except Exception as e:
         print(f"[CONFIG] 保存系统配置失败: {e}")
@@ -365,14 +389,24 @@ def load_neighbor_config():
         with open(NEIGHBOR_CONFIG_FILE, "r") as f:
             return json.load(f)
     except:
-        with open(NEIGHBOR_CONFIG_FILE, "w") as f:
-            json.dump(DEFAULT_NEIGHBOR_CONFIG, f)
+        try:
+            lock = get_file_lock(NEIGHBOR_CONFIG_FILE)
+            with lock:
+                atomic_write(NEIGHBOR_CONFIG_FILE, DEFAULT_NEIGHBOR_CONFIG)
+        except Exception as e:
+            print(f"[CONFIG] 创建默认邻居配置失败: {e}")
+        # with open(NEIGHBOR_CONFIG_FILE, "w") as f:
+        #     json.dump(DEFAULT_NEIGHBOR_CONFIG, f)
         return DEFAULT_NEIGHBOR_CONFIG.copy()
 
 def save_neighbor_config(cfg):
     try:
-        with open(NEIGHBOR_CONFIG_FILE, "w") as f:
-            json.dump(cfg, f)
+        lock = get_file_lock(NEIGHBOR_CONFIG_FILE)
+        with lock:  # MicroPython 支持上下文管理器
+            # 写入操作（见下文原子写）
+            atomic_write(NEIGHBOR_CONFIG_FILE, cfg)
+        # with open(NEIGHBOR_CONFIG_FILE, "w") as f:
+        #     json.dump(cfg, f)
         return True
     except Exception as e:
         print(f"[CONFIG] 保存邻居配置失败: {e}")
@@ -412,8 +446,12 @@ def load_nicknames():
 def save_nicknames(nicknames):
     """保存昵称表（全量覆盖）"""
     try:
-        with open(NICKNAMES_FILE, "w") as f:
-            json.dump(nicknames, f)
+        lock = get_file_lock(NICKNAMES_FILE)
+        with lock:  # MicroPython 支持上下文管理器
+            # 写入操作（见下文原子写）
+            atomic_write(NICKNAMES_FILE, nicknames)
+        # with open(NICKNAMES_FILE, "w") as f:
+        #     json.dump(nicknames, f)
         return True
     except Exception as e:
         print(f"[CONFIG] 保存系统配置失败: {e}")
@@ -489,8 +527,12 @@ def load_route_table():
 def save_route_table(table):
     """保存路由表（全量覆盖）"""
     try:
-        with open(ROUTE_TABLE_FILE, "w") as f:
-            json.dump(table, f)
+        lock = get_file_lock(ROUTE_TABLE_FILE)
+        with lock:  # MicroPython 支持上下文管理器
+            # 写入操作（见下文原子写）
+            atomic_write(ROUTE_TABLE_FILE, table)
+        # with open(ROUTE_TABLE_FILE, "w") as f:
+        #     json.dump(table, f)
         return True
     except Exception as e:
         print(f"[CONFIG] 保存系统配置失败: {e}")
@@ -546,14 +588,24 @@ def load_route_config():
         with open(ROUTE_CONFIG_FILE, "r") as f:
             return json.load(f)
     except:
-        with open(ROUTE_CONFIG_FILE, "w") as f:
-            json.dump(DEFAULT_ROUTE_CONFIG, f)
+        try:
+            lock = get_file_lock(ROUTE_CONFIG_FILE)
+            with lock:
+                atomic_write(ROUTE_CONFIG_FILE, DEFAULT_ROUTE_CONFIG)
+        except Exception as e:
+            print(f"[CONFIG] 创建默认路由配置失败: {e}")
+        # with open(ROUTE_CONFIG_FILE, "w") as f:
+        #     json.dump(DEFAULT_ROUTE_CONFIG, f)
         return DEFAULT_ROUTE_CONFIG.copy()
 
 def save_route_config(cfg):
     try:
-        with open(ROUTE_CONFIG_FILE, "w") as f:
-            json.dump(cfg, f)
+        lock = get_file_lock(ROUTE_CONFIG_FILE)
+        with lock:  # MicroPython 支持上下文管理器
+            # 写入操作（见下文原子写）
+            atomic_write(ROUTE_CONFIG_FILE, cfg)
+        # with open(ROUTE_CONFIG_FILE, "w") as f:
+        #     json.dump(cfg, f)
         return True
     except Exception as e:
         print(f"[CONFIG] 保存路由配置失败: {e}")

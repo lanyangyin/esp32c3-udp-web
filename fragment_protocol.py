@@ -3,6 +3,7 @@ import socket
 import binascii
 import time
 import random
+import _thread
 from constants import (
     FRAGMENT_CACHE_TIMEOUT,
     FRAGMENT_MAX_BYTES,
@@ -10,6 +11,7 @@ from constants import (
     FRAGMENT_MAX_CACHE_SIZE, DEBUG_FRAGMENT
 )
 
+_frag_lock = _thread.allocate_lock()
 _frag_cache = {}
 """分片重组缓存：msg_id → {total, fragments, src_mac, dst_mac, tag, ttl, last_time}"""
 
@@ -231,62 +233,67 @@ def reassemble_fragment(parsed, _addr=None):
     tag = parsed.get('TAG', '')
     ttl = int(parsed.get('TTL', FRAGMENT_DEFAULT_TTL))
 
-    # TTL 减 1，如果 <= 0 则丢弃
+    # TTL 减 1，如果 < 0 则丢弃
     ttl -= 1
-    if ttl < 0:
-        if cache_key in _frag_cache:
-            del _frag_cache[cache_key]
-        print(f"[UDP] 分片 TTL 耗尽，丢弃 ID={msg_id}, SRC={src_mac}")
-        return False, None, None, None, None, None
 
+    # 解码数据（无共享资源，可以放在锁外）
     try:
         frag_data = binascii.a2b_base64(data_b64).decode('utf-8')
     except:
         print(f"[UDP] 分片数据解码失败")
         return False, None, None, None, None, None
 
-    # 限制缓存大小
-    if len(_frag_cache) >= FRAGMENT_MAX_CACHE_SIZE:
-        # 删除最旧的条目（按 last_time 排序）
-        oldest_key = min(_frag_cache.keys(), key=lambda k: _frag_cache[k]['last_time'])
-        del _frag_cache[oldest_key]
-        print(f"[UDP] 分片缓存已满，删除最旧条目 {oldest_key}")
+    # ---- 以下进入临界区 ----
+    with _frag_lock:
+        # 如果 TTL 耗尽，删除缓存并丢弃
+        if ttl < 0:
+            if cache_key in _frag_cache:
+                del _frag_cache[cache_key]
+            print(f"[UDP] 分片 TTL 耗尽，丢弃 ID={msg_id}, SRC={src_mac}")
+            return False, None, None, None, None, None
 
-    # 初始化或更新缓存
-    if cache_key not in _frag_cache:
-        _frag_cache[cache_key] = {
-            'total': total,
-            'src_mac': src_mac,
-            'dst_mac': dst_mac,
-            'tag': tag,
-            'ttl': ttl,
-            'fragments': [],
-            'received': 0,
-            'last_time': time.time()
-        }
-        # 添加新条目后检查大小限制（不删除当前条目）
-        _enforce_cache_size(except_key=cache_key)
-    else:
-        # 更新 TTL（取较小值）
-        if ttl < _frag_cache[cache_key]['ttl']:
-            _frag_cache[cache_key]['ttl'] = ttl
+        # 限制缓存大小
+        if len(_frag_cache) >= FRAGMENT_MAX_CACHE_SIZE:
+            # 删除最旧的条目（按 last_time 排序）
+            oldest_key = min(_frag_cache.keys(), key=lambda k: _frag_cache[k]['last_time'])
+            del _frag_cache[oldest_key]
+            print(f"[UDP] 分片缓存已满，删除最旧条目 {oldest_key}")
 
-    cache = _frag_cache[cache_key]
-    cache['fragments'].append(frag_data)
-    cache['received'] += frag_len
-    cache['last_time'] = time.time()
+        # 初始化或更新缓存
+        if cache_key not in _frag_cache:
+            _frag_cache[cache_key] = {
+                'total': total,
+                'src_mac': src_mac,
+                'dst_mac': dst_mac,
+                'tag': tag,
+                'ttl': ttl,
+                'fragments': [],
+                'received': 0,
+                'last_time': time.time()
+            }
+            # 添加新条目后检查大小限制（不删除当前条目）
+            _enforce_cache_size(except_key=cache_key)
+        else:
+            # 更新 TTL（取较小值）
+            if ttl < _frag_cache[cache_key]['ttl']:
+                _frag_cache[cache_key]['ttl'] = ttl
 
-    # 检查是否完整
-    if cache['received'] >= total:
-        payload = ''.join(cache['fragments'])
-        src = cache['src_mac']
-        dst = cache['dst_mac']
-        tag_out = cache['tag']
-        ttl_out = cache['ttl']
-        # 清理缓存
-        del _frag_cache[cache_key]
-        print(f"[UDP] 分片重组完成: {len(cache['fragments'])}片, ID={msg_id}, SRC={src}")
-        return True, payload, src, dst, tag_out, ttl_out
+        cache = _frag_cache[cache_key]
+        cache['fragments'].append(frag_data)
+        cache['received'] += frag_len
+        cache['last_time'] = time.time()
+
+        # 检查是否完整
+        if cache['received'] >= total:
+            payload = ''.join(cache['fragments'])
+            src = cache['src_mac']
+            dst = cache['dst_mac']
+            tag_out = cache['tag']
+            ttl_out = cache['ttl']
+            # 清理缓存
+            del _frag_cache[cache_key]
+            print(f"[UDP] 分片重组完成: {len(cache['fragments'])}片, ID={msg_id}, SRC={src}")
+            return True, payload, src, dst, tag_out, ttl_out
 
     return False, None, None, None, None, None
 
@@ -296,11 +303,14 @@ def clean_frag_cache():
     global _frag_cache
     now = time.time()
     to_delete = []
-    for cache_key, cache in _frag_cache.items():
-        if now - cache['last_time'] > FRAGMENT_CACHE_TIMEOUT:
-            to_delete.append(cache_key)
-    for cache_key in to_delete:
-        del _frag_cache[cache_key]
-        print(f"[UDP] 分片缓存超时清理: {cache_key}")
-    # 清理后若仍超限，则裁剪（不排除任何条目）
-    _enforce_cache_size(except_key=None)
+    with _frag_lock:
+        # 1. 收集超时条目
+        for cache_key, cache in _frag_cache.items():
+            if now - cache['last_time'] > FRAGMENT_CACHE_TIMEOUT:
+                to_delete.append(cache_key)
+        # 2. 删除超时条目
+        for cache_key in to_delete:
+            del _frag_cache[cache_key]
+            print(f"[UDP] 分片缓存超时清理: {cache_key}")
+        # 3. 裁剪多余条目（调用时已持有锁）
+        _enforce_cache_size(except_key=None)

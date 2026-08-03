@@ -1,13 +1,16 @@
 # util.py - 通用工具
 
 import gc
+import os, json
 import socket
 import network
+import _thread
 
 # =============================================================================
 # 全局状态变量
 # =============================================================================
 DEBUG_GC = True   # 设为 False 关闭打印
+_file_locks = {}
 
 
 # =============================================================================
@@ -90,27 +93,50 @@ def is_safe_name(name):
             return False
     return True
 
+def get_file_lock(filepath):
+    if filepath not in _file_locks:
+        _file_locks[filepath] = _thread.allocate_lock()
+    return _file_locks[filepath]
 
+def atomic_write(filepath, data):
+    """将 data（dict/list）原子写入 JSON 文件"""
+    tmp = filepath + ".tmp"
+    try:
+        with open(tmp, "w") as f:
+            json.dump(data, f)
+        os.rename(tmp, filepath)   # rename 在大多数文件系统中是原子的
+    except Exception:
+        # 清理临时文件
+        try:
+            os.remove(tmp)
+        except:
+            pass
+        raise
 # =============================================================================
 # 引脚占用管理
 # =============================================================================
 _used_pins = {}  # pin → owner (描述字符串)
+
+_pin_lock = _thread.allocate_lock()
 
 def pin_claim(pin, owner):
     """
     申请占用一个 GPIO 引脚。
     返回 (success, message)，success 为 True 表示成功，False 表示已被占用。
     """
-    if pin in _used_pins:
-        return False, f"GPIO{pin} 已被 {_used_pins[pin]} 占用"
-    _used_pins[pin] = owner
-    return True, f"GPIO{pin} 分配给 {owner}"
+    with _pin_lock:
+        if pin in _used_pins:
+            return False, f"GPIO{pin} 已被 {_used_pins[pin]} 占用"
+        _used_pins[pin] = owner
+        return True, f"GPIO{pin} 分配给 {owner}"
 
 def pin_release(pin):
     """释放引脚占用，若未被占用则忽略"""
-    if pin in _used_pins:
-        del _used_pins[pin]
+    with _pin_lock:
+        if pin in _used_pins:
+            del _used_pins[pin]
 
 def get_used_pins():
     """返回当前所有已占用引脚的字典副本"""
-    return dict(_used_pins)
+    with _pin_lock:
+        return dict(_used_pins)
