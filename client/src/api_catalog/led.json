@@ -1,0 +1,7 @@
+[
+  {
+    "path": "/api/set_led_pin",
+    "method": "POST",
+    "desc": "\u8bbe\u7f6e LED \u5f15\u811a"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "cmd": "neighbor,list",
+    "desc": "\u663e\u793a\u5f53\u524d\u90bb\u5c45\u8868"
+  },
+  {
+    "cmd": "neighbor,set_interval,<\u79d2\u6570>",
+    "desc": "\u4fee\u6539\u90bb\u5c45\u5e7f\u64ad\u95f4\u9694\uff08\u9ed8\u8ba4120\u79d2\uff09"
+  },
+  {
+    "cmd": "neighbor,help",
+    "desc": "\u663e\u793a\u90bb\u5c45\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
+]

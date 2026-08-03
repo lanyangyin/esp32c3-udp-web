@@ -1,0 +1,46 @@
+[
+  {
+    "cmd": "help",
+    "desc": "\u663e\u793a\u6240\u6709\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "status",
+    "desc": "\u663e\u793a\u5f53\u524d\u914d\u7f6e\u4fe1\u606f"
+  },
+  {
+    "cmd": "memory",
+    "desc": "\u663e\u793a\u5185\u5b58\u4f7f\u7528\u60c5\u51b5"
+  },
+  {
+    "cmd": "servo,help",
+    "desc": "\u663e\u793a\u8235\u673a\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "ir05t,help",
+    "desc": "\u663e\u793a IR05T \u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "neighbor,help",
+    "desc": "\u663e\u793a\u90bb\u5c45\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "route,help",
+    "desc": "\u663e\u793a\u8def\u7531\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "nickname,help",
+    "desc": "\u663e\u793a\u6635\u79f0\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "config,help",
+    "desc": "\u663e\u793a\u914d\u7f6e\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "ap,help",
+    "desc": "\u663e\u793a AP \u914d\u7f6e\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  },
+  {
+    "cmd": "sta,help",
+    "desc": "\u663e\u793a STA \u914d\u7f6e\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
+]

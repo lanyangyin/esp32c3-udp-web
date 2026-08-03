@@ -1,0 +1,3 @@
+[
+    {"path": "/api/set_led_pin", "method": "POST", "desc": "设置 LED 引脚"}
+]

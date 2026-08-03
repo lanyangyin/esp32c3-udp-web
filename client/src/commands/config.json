@@ -1,0 +1,22 @@
+[
+  {
+    "cmd": "config,get",
+    "desc": "\u83b7\u53d6\u5f53\u524d\u6240\u6709\u914d\u7f6e\uff08JSON\u683c\u5f0f\uff09"
+  },
+  {
+    "cmd": "config,save",
+    "desc": "\u4fdd\u5b58\u5f53\u524d\u914d\u7f6e\u5230\u6587\u4ef6\u5e76\u91cd\u542f"
+  },
+  {
+    "cmd": "config,reload",
+    "desc": "\u91cd\u65b0\u52a0\u8f7d\u914d\u7f6e\u6587\u4ef6\uff08\u4e0d\u91cd\u542f\uff09"
+  },
+  {
+    "cmd": "config,reset",
+    "desc": "\u5220\u9664\u914d\u7f6e\u6587\u4ef6\u5e76\u91cd\u542f\uff08\u6062\u590d\u51fa\u5382\u8bbe\u7f6e\uff09"
+  },
+  {
+    "cmd": "config,help",
+    "desc": "\u663e\u793a\u914d\u7f6e\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
+]

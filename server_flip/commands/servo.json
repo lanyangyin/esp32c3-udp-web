@@ -1,0 +1,13 @@
+[
+    {"cmd": "servo,list", "desc": "列出所有舵机名称和引脚"},
+    {"cmd": "servo,set_pin,<舵机名称>,<引脚>", "desc": "设置舵机引脚（需 reload 生效）"},
+    {"cmd": "servo,delete,<舵机名称>", "desc": "删除舵机（从配置移除并释放 PWM）"},
+    {"cmd": "servo,set_init_angle,<舵机名称>,<初始化角度>", "desc": "设置舵机初始化角度（需 reload 生效）"},
+    {"cmd": "servo,set,<舵机名称>,<角度>", "desc": "直接设置指定舵机角度"},
+    {"cmd": "servo,record,<舵机名称>,<动作组名称>,<角度1>,<角度2>,...", "desc": "录制动作组（角度列表）"},
+    {"cmd": "servo,play,<舵机名称>,<动作组名称>", "desc": "执行指定动作组（每个角度间隔0.7秒）"},
+    {"cmd": "servo,stop", "desc": "停止当前正在播放的舵机动作组"},
+    {"cmd": "servo,delete_group,<舵机名称>,<动作组名称>", "desc": "删除指定动作组"},
+    {"cmd": "servo,list_groups,<舵机名称>", "desc": "列出舵机的所有动作组"},
+    {"cmd": "servo,help", "desc": "显示舵机模块的帮助信息"}
+]

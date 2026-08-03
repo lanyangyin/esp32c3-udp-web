@@ -1,0 +1,7 @@
+[
+    {"cmd": "config,get", "desc": "获取当前所有配置（JSON格式）"},
+    {"cmd": "config,save", "desc": "保存当前配置到文件并重启"},
+    {"cmd": "config,reload", "desc": "重新加载配置文件（不重启）"},
+    {"cmd": "config,reset", "desc": "删除配置文件并重启（恢复出厂设置）"},
+    {"cmd": "config,help", "desc": "显示配置模块的帮助信息"}
+]

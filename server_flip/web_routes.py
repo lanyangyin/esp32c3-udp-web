@@ -19,7 +19,8 @@ import wifi
 import udp
 import neighbor
 import route
-from constants import MIN_PORT, MAX_PORT, API_CATALOG
+from constants import MIN_PORT, MAX_PORT
+from loader import load_api_catalog, load_all_api_types
 
 
 def get_request_param(request, key, default=""):
@@ -102,7 +103,7 @@ def setup_routes(app):
     @with_cors
     def api_catalog(request):
         """返回所有 API 的分类名称列表"""
-        types = list(API_CATALOG.keys())
+        types = load_all_api_types()
         return make_response({"types": types}, content_type='application/json')
 
     # ========================================================================
@@ -116,13 +117,14 @@ def setup_routes(app):
         api_type = get_request_param(request, "type", "").strip()
         if not api_type:
             return make_response("缺少 type 参数", 400, content_type='text/plain')
-        if api_type not in API_CATALOG:
+        data = load_api_catalog(api_type)
+        if not data:
             return make_response(
-                {"error": f"未知类型 '{api_type}'，可用类型: {list(API_CATALOG.keys())}"},
+                {"error": f"未知类型 '{api_type}'，可用类型: {load_all_api_types()}"},
                 404,
                 content_type='application/json'
             )
-        return make_response(API_CATALOG[api_type], content_type='application/json')
+        return make_response(data, content_type='application/json')
 
     # ========================================================================
     # API：系统配置修改
@@ -545,12 +547,12 @@ def setup_routes(app):
         neighbor.save_neighbors({})
         return make_response("邻居表已清空", 200, content_type='text/plain; charset=utf-8')
 
-    @app.route("/api/clear_unauth", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def clear_unauth_api(request):
-        count = neighbor.clear_unauth()
-        return make_response(f"已清除 {count} 个未注册设备", 200, content_type='text/plain; charset=utf-8')
+    # @app.route("/api/clear_unauth", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def clear_unauth_api(request):
+    #     count = neighbor.clear_unauth()
+    #     return make_response(f"已清除 {count} 个未注册设备", 200, content_type='text/plain; charset=utf-8')
 
     @app.route("/api/delete_device", methods=["POST", "OPTIONS"])
     @gc_wrapper
@@ -840,112 +842,112 @@ def setup_routes(app):
         else:
             return make_response("发送失败", 500, content_type='text/plain; charset=utf-8')
 
-    # ========================================================================
-    # API：UDP 邻居表操作
-    # ========================================================================
-
-    @app.route("/api/auth_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def auth_request(request):
-        udp.send_neighbor_register_request("AP")
-        return make_response("AP 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/auth_request_sta", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def auth_request_sta(request):
-        prefix = wifi.get_sta_prefix()
-        if prefix is None:
-            return make_response("STA 未连接，无法获取网段", 400, content_type='text/plain; charset=utf-8')
-        udp.send_neighbor_register_request("STA")
-        return make_response("STA 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/auth_request_apsta", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def auth_request_apsta(request):
-        neighbor.ttl_decrement_neighbors()
-        udp.send_neighbor_register_request("STA")
-        udp.send_neighbor_register_request("AP")
-        return make_response("AP+STA 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/neighbor_sta_update_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def neighbor_sta_update_request(request):
-        sta = network.WLAN(network.STA_IF)
-        if not sta.isconnected():
-            return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
-        udp.send_neighbor_update_request("STA")
-        return make_response("邻居表 STA 更新请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/neighbor_ap_update_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def neighbor_ap_update_request(request):
-        udp.send_neighbor_update_request("AP")
-        return make_response("邻居表 AP 更新请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    # ========================================================================
-    # API：UDP 路由表操作
-    # ========================================================================
-
-    @app.route("/api/route_ap_register_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def route_ap_register_request(request):
-        route.route_ttl_decrement()
-        udp.send_route_register_request()
-        return make_response("AP 路由表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/route_sta_update_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def route_sta_update_request(request):
-        sta = network.WLAN(network.STA_IF)
-        if not sta.isconnected():
-            return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
-        udp.send_route_update_request()
-        return make_response("STA 路由表更新请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/route_sta_learn_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def route_sta_learn_request(request):
-        sta = network.WLAN(network.STA_IF)
-        if not sta.isconnected():
-            return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
-        udp.send_route_learn_request()
-        return make_response("STA 路由表学习请求已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/route_sta_advertise_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def route_sta_advertise_request(request):
-        table = route.load_route_table()
-        if not table:
-            return make_response("路由表为空", 200, content_type='text/plain; charset=utf-8')
-        sta = network.WLAN(network.STA_IF)
-        if not sta.isconnected():
-            return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
-        udp.send_route_advertise()
-        return make_response("STA 路由表通告已发送", 200, content_type='text/plain; charset=utf-8')
-
-    @app.route("/api/route_sta_sync_request", methods=["POST", "OPTIONS"])
-    @gc_wrapper
-    @with_cors
-    def route_sta_sync_request(request):
-        table = route.load_route_table()
-        if table:
-            sta = network.WLAN(network.STA_IF)
-            if sta.isconnected():
-                udp.send_route_advertise()
-        sta = network.WLAN(network.STA_IF)
-        if not sta.isconnected():
-            return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
-        udp.send_route_learn_request()
-        return make_response("STA 路由表同步请求已发送（通告+学习）", 200, content_type='text/plain; charset=utf-8')
+    # # ========================================================================
+    # # API：UDP 邻居表操作
+    # # ========================================================================
+    #
+    # @app.route("/api/auth_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def auth_request(request):
+    #     udp.send_neighbor_register_request("AP")
+    #     return make_response("AP 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/auth_request_sta", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def auth_request_sta(request):
+    #     prefix = wifi.get_sta_prefix()
+    #     if prefix is None:
+    #         return make_response("STA 未连接，无法获取网段", 400, content_type='text/plain; charset=utf-8')
+    #     udp.send_neighbor_register_request("STA")
+    #     return make_response("STA 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/auth_request_apsta", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def auth_request_apsta(request):
+    #     neighbor.ttl_decrement_neighbors()
+    #     udp.send_neighbor_register_request("STA")
+    #     udp.send_neighbor_register_request("AP")
+    #     return make_response("AP+STA 邻居表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/neighbor_sta_update_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def neighbor_sta_update_request(request):
+    #     sta = network.WLAN(network.STA_IF)
+    #     if not sta.isconnected():
+    #         return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
+    #     udp.send_neighbor_update_request("STA")
+    #     return make_response("邻居表 STA 更新请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/neighbor_ap_update_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def neighbor_ap_update_request(request):
+    #     udp.send_neighbor_update_request("AP")
+    #     return make_response("邻居表 AP 更新请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # # ========================================================================
+    # # API：UDP 路由表操作
+    # # ========================================================================
+    #
+    # @app.route("/api/route_ap_register_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def route_ap_register_request(request):
+    #     route.route_ttl_decrement()
+    #     udp.send_route_register_request()
+    #     return make_response("AP 路由表注册请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/route_sta_update_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def route_sta_update_request(request):
+    #     sta = network.WLAN(network.STA_IF)
+    #     if not sta.isconnected():
+    #         return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
+    #     udp.send_route_update_request()
+    #     return make_response("STA 路由表更新请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/route_sta_learn_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def route_sta_learn_request(request):
+    #     sta = network.WLAN(network.STA_IF)
+    #     if not sta.isconnected():
+    #         return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
+    #     udp.send_route_learn_request()
+    #     return make_response("STA 路由表学习请求已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/route_sta_advertise_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def route_sta_advertise_request(request):
+    #     table = route.load_route_table()
+    #     if not table:
+    #         return make_response("路由表为空", 200, content_type='text/plain; charset=utf-8')
+    #     sta = network.WLAN(network.STA_IF)
+    #     if not sta.isconnected():
+    #         return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
+    #     udp.send_route_advertise()
+    #     return make_response("STA 路由表通告已发送", 200, content_type='text/plain; charset=utf-8')
+    #
+    # @app.route("/api/route_sta_sync_request", methods=["POST", "OPTIONS"])
+    # @gc_wrapper
+    # @with_cors
+    # def route_sta_sync_request(request):
+    #     table = route.load_route_table()
+    #     if table:
+    #         sta = network.WLAN(network.STA_IF)
+    #         if sta.isconnected():
+    #             udp.send_route_advertise()
+    #     sta = network.WLAN(network.STA_IF)
+    #     if not sta.isconnected():
+    #         return make_response("STA 未连接", 400, content_type='text/plain; charset=utf-8')
+    #     udp.send_route_learn_request()
+    #     return make_response("STA 路由表同步请求已发送（通告+学习）", 200, content_type='text/plain; charset=utf-8')
 
     # ========================================================================
     # API：系统操作

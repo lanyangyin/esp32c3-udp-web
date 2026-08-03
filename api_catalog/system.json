@@ -1,0 +1,22 @@
+[
+    {"path": "/api/get_ap_status", "method": "GET", "desc": "获取 AP 状态"},
+    {"path": "/api/get_sta_status", "method": "GET", "desc": "获取 STA 状态"},
+    {"path": "/api/get_ap_ssid_password", "method": "GET", "desc": "获取 AP SSID 和密码"},
+    {"path": "/api/get_sta_ssid_password", "method": "GET", "desc": "获取 STA SSID 和密码"},
+    {"path": "/api/set_sta_ssid_password", "method": "POST", "desc": "设置 STA SSID 和密码"},
+    {"path": "/api/get_udp_recv_port", "method": "GET", "desc": "获取 UDP 接收端口"},
+    {"path": "/api/get_udp_broadcast_port", "method": "GET", "desc": "获取 UDP 广播端口"},
+    {"path": "/api/get_udp_poll_interval", "method": "GET", "desc": "获取 UDP 轮询间隔"},
+    {"path": "/api/get_self_mac", "method": "GET", "desc": "获取本机 MAC"},
+    {"path": "/api/get_led_pin", "method": "GET", "desc": "获取 LED 引脚"},
+    {"path": "/api/get_led_status", "method": "GET", "desc": "获取 LED 状态"},
+    {"path": "/api/get_sta_timeout", "method": "GET", "desc": "获取 STA 超时"},
+    {"path": "/api/memory", "method": "GET", "desc": "获取内存使用情况"},
+    {"path": "/api/config_get", "method": "GET", "desc": "获取所有配置"},
+    {"path": "/api/config_reload", "method": "POST", "desc": "重新加载配置"},
+    {"path": "/api/config_reset", "method": "POST", "desc": "重置配置并重启"},
+    {"path": "/api/reboot", "method": "POST", "desc": "重启设备"},
+    {"path": "/api/set_reset_pin", "method": "POST", "desc": "设置重置引脚（需重启生效）"},
+    {"path": "/api/set_reset_hold_time", "method": "POST", "desc": "设置重置保持时间（秒，需重启生效）"},
+    {"path": "/api/get_reset_status", "method": "GET", "desc": "获取重置引脚和保持时间"}
+]

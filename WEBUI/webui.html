@@ -338,11 +338,11 @@
 <!-- 邻居表 -->
 <div id="page-neighbor" class="page">
     <h2>ESP32-C3 控制台 - 邻居表管理</h2>
-    <div class="section">
-        <h3>邻居注册请求</h3>
-        <button onclick="authRequestBoth()">AP+STA 同时注册</button>
-        <div class="example">示例: /api/auth_request_apsta</div>
-    </div>
+<!--    <div class="section">-->
+<!--        <h3>邻居注册请求</h3>-->
+<!--        <button onclick="authRequestBoth()">AP+STA 同时注册</button>-->
+<!--        <div class="example">示例: /api/auth_request_apsta</div>-->
+<!--    </div>-->
     <div class="section">
         <h3>邻居广播间隔设置</h3>
         <label>间隔(秒): <input type="number" id="neighbor_interval" min="5" value="120"></label>
@@ -387,14 +387,14 @@
 <!-- 路由表 -->
 <div id="page-route" class="page">
     <h2>ESP32-C3 控制台 - 路由表管理</h2>
-    <div class="section">
-        <h3>路由表操作</h3>
-        <button onclick="routeSync()">路由表同步（通告+学习）</button>
-        <div class="example">示例: /api/route_sta_sync_request</div>
-        <br><br>
-        <button onclick="routeApRegister()">AP注册请求</button>
-        <div class="example">示例: /api/route_ap_register_request</div>
-    </div>
+<!--    <div class="section">-->
+<!--        <h3>路由表操作</h3>-->
+<!--        <button onclick="routeSync()">路由表同步（通告+学习）</button>-->
+<!--        <div class="example">示例: /api/route_sta_sync_request</div>-->
+<!--        <br><br>-->
+<!--        <button onclick="routeApRegister()">AP注册请求</button>-->
+<!--        <div class="example">示例: /api/route_ap_register_request</div>-->
+<!--    </div>-->
     <div class="section">
         <h3>路由通告间隔设置</h3>
         <label>间隔(秒): <input type="number" id="route_interval" min="5" value="120"></label>
@@ -910,12 +910,12 @@ function sendRouteMsg() {
 // ============================================================
 // 邻居表页面
 // ============================================================
-function authRequestBoth() {
-    apiFetch('/api/auth_request_apsta', { method: 'POST' })
-        .then(res => res.text())
-        .then(data => showResult('result_neighbor', 'AP+STA注册: ' + data))
-        .catch(err => showResult('result_neighbor', '请求失败: ' + err.toString()));
-}
+// function authRequestBoth() {
+//     apiFetch('/api/auth_request_apsta', { method: 'POST' })
+//         .then(res => res.text())
+//         .then(data => showResult('result_neighbor', 'AP+STA注册: ' + data))
+//         .catch(err => showResult('result_neighbor', '请求失败: ' + err.toString()));
+// }
 function setNeighborInterval() {
     var interval = document.getElementById('neighbor_interval').value.trim();
     if (!interval) { showResult('result_neighbor', '请输入间隔秒数'); return; }
@@ -988,15 +988,15 @@ function setNick() {
 // ============================================================
 // 路由表页面
 // ============================================================
-function routeSync() {
-    apiFetch('/api/route_sta_sync_request', { method: 'POST' })
-        .then(res => res.text())
-        .then(data => {
-            showResult('result_route', '同步请求: ' + data);
-            setTimeout(fetchRouteTable, 3000);
-        })
-        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
-}
+// function routeSync() {
+//     apiFetch('/api/route_sta_sync_request', { method: 'POST' })
+//         .then(res => res.text())
+//         .then(data => {
+//             showResult('result_route', '同步请求: ' + data);
+//             setTimeout(fetchRouteTable, 3000);
+//         })
+//         .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+// }
 function routeApRegister() {
     apiFetch('/api/route_ap_register_request', { method: 'POST' })
         .then(res => res.text())

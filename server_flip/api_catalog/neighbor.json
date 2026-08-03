@@ -1,0 +1,16 @@
+[
+    {"path": "/api/get_nicknames", "method": "GET", "desc": "获取所有昵称"},
+    {"path": "/api/get_macs", "method": "GET", "desc": "获取已连接设备的 MAC 列表"},
+    {"path": "/api/list_auth", "method": "GET", "desc": "获取已认证设备列表"},
+    {"path": "/api/clear_neighbors", "method": "POST", "desc": "清空邻居表"},
+    {"path": "/api/delete_device", "method": "POST", "desc": "删除设备"},
+    {"path": "/api/set_nickname", "method": "POST", "desc": "设置设备昵称"},
+    {"path": "/api/set_self_nickname", "method": "POST", "desc": "设置本机昵称"},
+    {"path": "/api/set_neighbor_interval", "method": "POST", "desc": "设置邻居广播间隔"},
+    {"path": "/api/get_neighbor_interval", "method": "GET", "desc": "获取邻居广播间隔"},
+    {"path": "/api/auth_request", "method": "POST", "desc": "发送 AP 邻居注册请求"},
+    {"path": "/api/auth_request_sta", "method": "POST", "desc": "发送 STA 邻居注册请求"},
+    {"path": "/api/auth_request_apsta", "method": "POST", "desc": "发送 AP+STA 邻居注册请求"},
+    {"path": "/api/neighbor_sta_update_request", "method": "POST", "desc": "发送 STA 邻居更新请求"},
+    {"path": "/api/neighbor_ap_update_request", "method": "POST", "desc": "发送 AP 邻居更新请求"}
+]

@@ -13,8 +13,8 @@ from constants import (
     DEFAULT_UDP_RECV_PORT, DEFAULT_UDP_BROADCAST_PORT,
     DEFAULT_UDP_POLL_INTERVAL, DEFAULT_LED_PIN,
     DEFAULT_STA_TIMEOUT,
-    ROUTE_TTL_MAX, ROUTE_STEP, NEIGHBOR_TTL_MAX, HEARTBEAT_TIMEOUT,
-    DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL, DEFAULT_COMMANDS,
+    ROUTE_TTL_MAX, ROUTE_STEP, NEIGHBOR_TTL_MAX,
+    DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL,
     DEFAULT_IR_BAUDRATE, DEFAULT_IR_TIMEOUT, DEFAULT_RESET_PIN, DEFAULT_RESET_HOLD_TIME
 )
 
@@ -85,9 +85,6 @@ g_neighbor_advertise_interval = DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL
 
 g_route_advertise_interval = DEFAULT_ROUTE_ADVERTISE_INTERVAL
 
-
-# 控制配置全局变量
-g_commands = DEFAULT_COMMANDS
 
 g_reset_pin_obj = None
 
@@ -267,36 +264,6 @@ def update_reset_hold_time(new_time):
     config["reset_hold_time"] = new_time
     save_system_config(config)
     g_reset_hold_time = new_time
-
-# 心跳相关
-_heartbeat_lock = _thread.allocate_lock()
-heartbeat = {
-    'udp_receiver': time.time(),
-    'udp_neighbor': time.time(),
-    'web_server': time.time(),
-}
-
-def update_heartbeat(name):
-    """更新指定线程的心跳时间"""
-    with _heartbeat_lock:
-        heartbeat[name] = time.time()
-
-
-def get_heartbeat(name):
-    """获取指定线程的心跳时间"""
-    with _heartbeat_lock:
-        return heartbeat.get(name, 0)
-
-
-def check_heartbeats():
-    """检查所有线程心跳，超时返回需要重启的线程名列表"""
-    now = time.time()
-    dead = []
-    with _heartbeat_lock:
-        for name, last in heartbeat.items():
-            if now - last > HEARTBEAT_TIMEOUT:
-                dead.append(name)
-    return dead
 
 
 # =============================================================================
@@ -591,6 +558,26 @@ def save_route_config(cfg):
     except Exception as e:
         print(f"[CONFIG] 保存路由配置失败: {e}")
         return False
+
+
+# =============================================================================
+# 删除设备
+# =============================================================================
+
+def delete_device(mac):
+    """
+    从邻居表和昵称表中同时删除指定 MAC 的设备。
+    返回是否至少删除了一个表中的条目。
+    """
+    mac = mac_to_str(mac)
+    deleted = False
+    if delete_neighbor(mac):
+        deleted = True
+    if delete_nickname(mac):
+        deleted = True
+    if delete_route(mac):
+        deleted = True
+    return deleted
 
 
 # =============================================================================

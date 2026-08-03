@@ -1,6 +1,7 @@
 # info_commands.py
 import gc
 import config
+from loader import load_commands
 
 def get_help_info(module=None, include_config=False):
     config_info = ""
@@ -13,24 +14,21 @@ def get_help_info(module=None, include_config=False):
 
     cmd_lines = []
     if module is None:
-        # 只显示 system 组的命令
         cmd_lines.append("--- 系统命令 ---")
-        cmds = config.g_commands.get("system", [])
+        cmds = load_commands("system")
         for item in cmds:
             cmd_lines.append(f"  {item['cmd']}  - {item['desc']}")
     else:
-        mod_cmds = config.g_commands.get(module, [])
-        if not mod_cmds:
+        cmds = load_commands(module)
+        if not cmds:
             return f"错误: 未知模块 '{module}'"
         cmd_lines.append(f"\n--- {module.upper()} 模块命令 ---")
-        for item in mod_cmds:
+        for item in cmds:
             cmd_lines.append(f"  {item['cmd']}  - {item['desc']}")
 
     return config_info + "\n".join(cmd_lines)
 
-
 def get_status_info():
-    # 获取 STA IP
     try:
         import network
         sta = network.WLAN(network.STA_IF)
@@ -48,7 +46,6 @@ def get_status_info():
     config_info += f"邻居广播间隔: {config.g_neighbor_advertise_interval} 秒\n"
     config_info += f"路由通告间隔: {config.g_route_advertise_interval} 秒"
     return config_info
-
 
 def get_memory_info():
     free = gc.mem_free()

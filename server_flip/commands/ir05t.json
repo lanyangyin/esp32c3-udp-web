@@ -1,0 +1,19 @@
+[
+    {"cmd": "ir05t,list_devices", "desc": "列出所有 IR 设备"},
+    {"cmd": "ir05t,add,<设备名>,<tx_pin>,<rx_pin>[,<baudrate>[,<timeout>]]", "desc": "添加并初始化 IR 设备"},
+    {"cmd": "ir05t,delete,<设备名>", "desc": "删除 IR 设备"},
+    {"cmd": "ir05t,set_pin,<设备名>,<tx_pin>,<rx_pin>", "desc": "修改设备引脚"},
+    {"cmd": "ir05t,list,<设备名>", "desc": "列出设备下所有已学习的数据"},
+    {"cmd": "ir05t,get,<设备名>,<数据名>", "desc": "获取指定数据内容"},
+    {"cmd": "ir05t,learn,<设备名>", "desc": "通用学习（不保存）"},
+    {"cmd": "ir05t,learn_save,<设备名>,<数据名>", "desc": "学习并保存数据"},
+    {"cmd": "ir05t,send,<设备名>,<数据名>", "desc": "发送已保存的数据"},
+    {"cmd": "ir05t,delete_data,<设备名>,<数据名>", "desc": "删除指定数据"},
+    {"cmd": "ir05t,learn_channel,<设备名>,<1~5>", "desc": "通道学习"},
+    {"cmd": "ir05t,send_channel,<设备名>,<1~5>", "desc": "发送通道"},
+    {"cmd": "ir05t,send_raw,<设备名>,<hex数据>", "desc": "发送原始数据"},
+    {"cmd": "ir05t,set_baud,<设备名>,<波特率>", "desc": "修改波特率"},
+    {"cmd": "ir05t,set_timeout,<设备名>,<毫秒>", "desc": "修改超时"},
+    {"cmd": "ir05t,set_header,<设备名>,<0xA0~0xFE>", "desc": "修改帧头"},
+    {"cmd": "ir05t,help", "desc": "显示 IR05T 模块的帮助信息"}
+]

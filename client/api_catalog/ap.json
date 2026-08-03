@@ -1,0 +1,8 @@
+[
+    {"path": "/api/set_ap_ip", "method": "POST", "desc": "设置 AP IP"},
+    {"path": "/api/set_ap_ssid_password", "method": "POST", "desc": "设置 AP SSID 和密码"},
+    {"path": "/api/set_ap_netmask", "method": "POST", "desc": "设置 AP 子网掩码"},
+    {"path": "/api/set_ap_gateway", "method": "POST", "desc": "设置 AP 网关"},
+    {"path": "/api/reset_ap_config", "method": "POST", "desc": "重置 AP 配置"},
+    {"path": "/api/set_ap_net_segment", "method": "POST", "desc": "设置 AP 网段"}
+]

@@ -74,7 +74,6 @@ def udp_neighbor_routing_reply():
     last_route_advertise_time = time.time()
     gc_counter = time.time()    # 邻居表&路由表扩散内存整理计时
     while True:
-        config.update_heartbeat('udp_neighbor')
         try:
             now = time.time()
             # 定期广播邻居请求回复（携带昵称）
@@ -135,7 +134,6 @@ def udp_receiver():
     gc_counter = time.time()
 
     while True:
-        config.update_heartbeat('udp_receiver')
         try:
             # 定期清理超时分片缓存
             now = time.time()

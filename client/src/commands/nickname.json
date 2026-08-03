@@ -1,0 +1,10 @@
+[
+  {
+    "cmd": "nickname,set,<\u65b0\u6635\u79f0>",
+    "desc": "\u4fee\u6539\u8bbe\u5907\u6635\u79f0\uff08\u7acb\u5373\u751f\u6548\uff09"
+  },
+  {
+    "cmd": "nickname,help",
+    "desc": "\u663e\u793a\u6635\u79f0\u6a21\u5757\u7684\u5e2e\u52a9\u4fe1\u606f"
+  }
+]
