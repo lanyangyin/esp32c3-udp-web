@@ -21,7 +21,8 @@ import json
 import os
 import time
 import machine
-from util import mac_to_str, get_mac_short, get_default_nickname, get_self_mac, get_file_lock, atomic_write
+from util import mac_to_str, get_mac_short, get_default_nickname, get_self_mac, get_file_lock, atomic_write, \
+    ensure_config_dir
 from constants import (
     DEFAULT_AP_IP, DEFAULT_AP_SUBNET,
     DEFAULT_STA_SSID, DEFAULT_STA_PASSWORD, DEFAULT_AP_SSID_PREFIX,
@@ -30,20 +31,25 @@ from constants import (
     DEFAULT_STA_TIMEOUT,
     ROUTE_TTL_MAX, ROUTE_STEP, NEIGHBOR_TTL_MAX,
     DEFAULT_NEIGHBOR_ADVERTISE_INTERVAL, DEFAULT_ROUTE_ADVERTISE_INTERVAL,
-    DEFAULT_IR_BAUDRATE, DEFAULT_IR_TIMEOUT, DEFAULT_RESET_PIN, DEFAULT_RESET_HOLD_TIME
+    DEFAULT_IR_BAUDRATE, DEFAULT_IR_TIMEOUT,
+    DEFAULT_RESET_PIN, DEFAULT_RESET_HOLD_TIME, NEIGHBOR_STEP
 )
 
 
 # =============================================================================
+# 配置存储目录
+# =============================================================================
+CONFIG_DIR = "configs/"
+# =============================================================================
 # 文件路径常量
 # =============================================================================
-SYSTEM_CONFIG_FILE = "system-config.json" # AP / UDP / LED 等系统参数
-WIFI_CONFIG_FILE = "wifi-config.json"          # STA 模式凭据
-NICKNAMES_FILE = "nicknames.json"         # 昵称表（MAC → 昵称）
-NEIGHBORS_FILE = "neighbors.json"         # 邻居表（MAC → IP）
-ROUTE_TABLE_FILE = "route_table.json"     # 路由表（MAC → {ip, ttl}）
-NEIGHBOR_CONFIG_FILE = "neighbor-config.json"
-ROUTE_CONFIG_FILE = "route-config.json"
+SYSTEM_CONFIG_FILE = CONFIG_DIR + "system-config.json" # AP / UDP / LED 等系统参数
+WIFI_CONFIG_FILE = CONFIG_DIR + "wifi-config.json"          # STA 模式凭据
+NICKNAMES_FILE = CONFIG_DIR + "nicknames.json"         # 昵称表（MAC → 昵称）
+NEIGHBORS_FILE = CONFIG_DIR + "neighbors.json"         # 邻居表（MAC → IP）
+ROUTE_TABLE_FILE = CONFIG_DIR + "route_table.json"     # 路由表（MAC → {ip, ttl}）
+NEIGHBOR_CONFIG_FILE = CONFIG_DIR + "neighbor-config.json"
+ROUTE_CONFIG_FILE = CONFIG_DIR + "route-config.json"
 
 
 # =============================================================================
@@ -350,11 +356,11 @@ def get_neighbor_entry(mac):
     neighbors = load_neighbors()
     return neighbors.get(mac)
 
-def add_or_update_neighbor(mac, ip, ttl=2):
-    """添加或更新邻居条目，ttl 最大为 2"""
+def add_or_update_neighbor(mac, ip, ttl=NEIGHBOR_STEP):
+    """添加或更新邻居条目，ttl 最大为 NEIGHBOR_TTL_MAX"""
     mac = mac_to_str(mac)
-    if ttl > 2:
-        ttl = 2
+    if ttl > NEIGHBOR_TTL_MAX:
+        ttl = NEIGHBOR_TTL_MAX
     neighbors = load_neighbors()
     neighbors[mac] = {"ip": ip, "ttl": ttl}
     save_neighbors(neighbors)
@@ -572,10 +578,6 @@ def route_ttl_decrement():
 # =============================================================================
 # 路由表常量重新导出（供其他模块使用）
 # =============================================================================
-ROUTE_TTL_MAX = ROUTE_TTL_MAX
-ROUTE_STEP = ROUTE_STEP
-NEIGHBOR_TTL_MAX = NEIGHBOR_TTL_MAX
-
 def load_route_table():
     """读取路由表"""
     try:
@@ -815,6 +817,7 @@ def load_all_configs():
     加载所有配置文件，若文件不存在则自动创建。
     包括系统、WiFi、控制、舵机、IR、邻居、路由、昵称。
     """
+    ensure_config_dir(CONFIG_DIR)
     load_global_config()          # 加载系统配置并更新全局变量
     load_wifi_config()            # 加载 STA 凭据
     load_neighbors()              # 加载邻居表（如缺失则返回空字典）

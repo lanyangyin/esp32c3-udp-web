@@ -308,7 +308,7 @@ def udp_receiver():
                             added += 1
                             print(f"[路由通告] 添加/更新路由: {mac} -> {sender_ip}, step={step}")
                         # 一次性保存路由表
-                        if added > 0:
+                        if added + updated > 0:
                             route.save_route_table(table)
                             config.save_nicknames(nicknames_table)
                         print(f"[路由通告] 通告处理完成，添加 {added} 条新路由。更新 {updated} 条路由")

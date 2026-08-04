@@ -140,6 +140,15 @@ def dict_keys_diff(a, b):
     keys_b = set(b.keys()) if hasattr(b, 'keys') else set(b)
     return list(keys_a - keys_b)
 
+def ensure_config_dir(CONFIG_DIR):
+    """确保配置目录存在，若不存在则创建"""
+    try:
+        os.mkdir(CONFIG_DIR)
+        print(f"[CONFIG] 创建配置目录: {CONFIG_DIR}")
+    except OSError:
+        print("目录已存在或创建失败（忽略）")
+        pass
+
 
 # =============================================================================
 # 引脚占用管理
