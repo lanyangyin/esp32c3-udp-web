@@ -83,7 +83,8 @@
 ## 快速开始
 
 ### 1. 烧录 MicroPython 固件
-1. 下载 ESP32-C3 的 MicroPython 固件（`.bin`）[官方下载](https://micropython.org/download/ESP32_GENERIC_C3/)。
+1. 下载 ESP32-C3 的 最新MicroPython 固件（`.bin`）[官方下载](https://micropython.org/download/LOLIN_C3_MINI/)。
+- 或者使用我下载好的[LOLIN_C3_MINI-20260406-v1.28.0.bin](img/LOLIN_C3_MINI-20260406-v1.28.0.bin)
 2. 使用 `esptool.py` 擦除并烧录：
    ```bash
    esptool.py --chip esp32c3 --port /dev/ttyUSB0 erase_flash
