@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-C3 控制台 - 路由表</title>
+    <style>
+        /* 样式与 neighbor.html 相同，此处省略，实际文件需包含完整样式 */
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+        h2 { margin-top: 0; }
+        .section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; background: #fff; }
+        input, button, textarea { padding: 8px 10px; margin: 3px 5px 3px 0; border: 1px solid #ccc; border-radius: 4px; }
+        textarea { width: 100%; height: 60px; resize: vertical; font-family: inherit; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #45a049; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        button.small { padding: 2px 6px; font-size: 0.7rem; margin-left: 5px; background: #2196F3; }
+        .result { background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto; font-size: 0.95em; }
+        .example { color: #555; font-size: 0.9em; margin-top: 5px; background: #f5f5f5; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+        .nav { background: #333; padding: 10px; color: #fff; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        .nav a { color: #fff; padding: 5px 12px; text-decoration: none; border-radius: 4px; cursor: pointer; }
+        .nav a:hover { background: #555; }
+        .nav a.active { background: #4CAF50; }
+        .page { display: block; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .status-item { background: #f5f5f5; padding: 5px 10px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .status-item span { flex: 1; }
+        .msg-area { background: #e8f4f8; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 0.9em; font-family: 'Courier New', monospace; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #bcd8e6; }
+        .device-list, .route-table { background: #f0f0f0; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+        .route-table { max-height: 300px; }
+        @media (max-width: 600px) {
+            .status-grid { grid-template-columns: 1fr; }
+            .nav a { padding: 4px 8px; font-size: 0.85rem; }
+            input, button, textarea { width: 100%; margin: 5px 0; }
+            .section { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="nav">
+    <a href="/home">主页</a>
+    <a href="/broadcast">广播</a>
+    <a href="/unicast">单播</a>
+    <a href="/neighbor">邻居表</a>
+    <a href="/route" class="active">路由表</a>
+    <a href="/ap">AP设置</a>
+    <a href="/sta">STA设置</a>
+    <a href="/udp">UDP设置</a>
+    <a href="/system">系统设置</a>
+</div>
+
+<div class="page">
+    <h2>ESP32-C3 控制台 - 路由表管理</h2>
+    <div class="section">
+        <h3>路由通告间隔设置</h3>
+        <label>间隔(秒): <input type="number" id="route_interval" min="5" value="120"></label>
+        <button onclick="setRouteInterval()">设置</button>
+        <br><br>
+        <button onclick="getRouteInterval()">获取当前间隔</button>
+        <span id="routeIntervalDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/set_route_interval (POST), /api/get_route_interval (GET)</div>
+    </div>
+    <div class="section">
+        <h3>路由表管理</h3>
+        <div id="routeTableDisplay" class="route-table">等待加载...</div>
+        <button onclick="refreshRouteTable()">刷新路由表</button>
+        <button onclick="clearRouteTable()" style="background:#f44336;">清空路由表</button>
+        <div style="margin-top: 10px;">
+            <label>MAC: <input type="text" id="route_del_mac" placeholder="8C:FD:49:55:02:F4"></label>
+            <button onclick="deleteRoute()">删除该路由</button>
+        </div>
+        <div class="example">API 示例：/api/route_table (查看), /api/route_clear (清空), /api/route_delete?mac=8C:FD:49:55:02:F4 (删除)</div>
+    </div>
+    <div class="section">
+        <h3>昵称设置（路由表关联）</h3>
+        <label>MAC: <input type="text" id="route_nick_mac" placeholder="8C:FD:49:55:02:F4"></label>
+        <label>昵称: <input type="text" id="route_nick_name" placeholder="mydevice"></label>
+        <button onclick="setRouteNick()">设置昵称</button>
+        <div class="example">API: /api/set_nickname?mac=8C:FD:49:55:02:F4&nickname=mydev</div>
+    </div>
+    <div class="section">
+        <h3>UDP 消息列表</h3>
+        <div id="udpMsgList_route" class="msg-area">等待消息...</div>
+        <button onclick="clearUdpMsg('route')" style="background:#f44336;">清空</button>
+        <button onclick="refreshUdpMessages('route')" style="background:#2196F3;">刷新</button>
+        <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_route" class="result">等待操作...</div>
+    </div>
+</div>
+
+<script>
+function apiFetch(endpoint, options) {
+    return fetch(endpoint, options);
+}
+function showResult(containerId, text) {
+    const el = document.getElementById(containerId);
+    if (el) el.textContent = text;
+}
+function fetchUdpMessages(containerId) {
+    apiFetch('/api/udp_messages').then(res => res.json()).then(data => {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.length === 0) { container.textContent = '暂无消息'; return; }
+        var lines = data.map(item => {
+            var timeStr = new Date(item.time * 1000).toLocaleTimeString();
+            return timeStr + ' ' + item.addr + ': ' + item.msg;
+        });
+        container.textContent = lines.join('\n\n');
+    }).catch(err => console.error('获取UDP消息失败:', err));
+}
+function refreshUdpMessages(page) {
+    var map = {
+        'broadcast': 'udpMsgList_broadcast',
+        'unicast': 'udpMsgList_unicast',
+        'neighbor': 'udpMsgList_neighbor',
+        'route': 'udpMsgList_route'
+    };
+    var containerId = map[page] || 'udpMsgList_broadcast';
+    showResult('result_' + page, '正在刷新...');
+    fetchUdpMessages(containerId);
+    showResult('result_' + page, '刷新完成');
+}
+function clearUdpMsg(page) {
+    if (!confirm('确定清空所有UDP消息记录吗？')) return;
+    apiFetch('/api/clear_udp_messages', { method: 'POST' }).then(res => res.text()).then(data => {
+        showResult('result_' + page, '清空消息: ' + data);
+        refreshUdpMessages(page);
+    }).catch(err => showResult('result_' + page, '请求失败: ' + err.toString()));
+}
+
+function setRouteInterval() {
+    var interval = document.getElementById('route_interval').value.trim();
+    if (!interval) { showResult('result_route', '请输入间隔秒数'); return; }
+    apiFetch('/api/set_route_interval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval: parseInt(interval) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_route', '设置间隔: ' + data);
+        getRouteInterval();
+    })
+    .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+function getRouteInterval() {
+    apiFetch('/api/get_route_interval')
+        .then(res => res.json())
+        .then(data => {
+            var val = data.interval || '未获取';
+            document.getElementById('route_interval').value = val;
+            document.getElementById('routeIntervalDisplay').textContent = '当前间隔: ' + val + ' 秒';
+        })
+        .catch(err => {
+            document.getElementById('routeIntervalDisplay').textContent = '获取失败';
+        });
+}
+function refreshRouteTable() {
+    showResult('result_route', '刷新路由表...');
+    apiFetch('/api/route_table_with_nick')
+        .then(res => res.json())
+        .then(data => {
+            var display = document.getElementById('routeTableDisplay');
+            var keys = Object.keys(data);
+            if (keys.length === 0) {
+                display.textContent = '路由表为空';
+                return;
+            }
+            var lines = keys.map(mac => {
+                var entry = data[mac];
+                var nick = entry.nickname || '未设置';
+                var dst = entry.distance || '-';
+                return mac + ' -> ' + entry.ip + ' (TTL: ' + entry.ttl + ') 昵称: ' + nick + '    步长: ' + dst;
+            });
+            display.textContent = lines.join('\n');
+        })
+        .catch(err => {
+            document.getElementById('routeTableDisplay').textContent = '加载失败: ' + err;
+        });
+}
+function clearRouteTable() {
+    if (!confirm('确定清空路由表吗？')) return;
+    apiFetch('/api/route_clear', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_route', '清空路由表: ' + data);
+            refreshRouteTable();
+        })
+        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+function deleteRoute() {
+    var mac = document.getElementById('route_del_mac').value.trim();
+    if (!mac) { showResult('result_route', '请输入MAC地址'); return; }
+    if (!confirm('确定要删除路由 ' + mac + ' 吗？')) return;
+    apiFetch('/api/route_delete?mac=' + encodeURIComponent(mac), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_route', '删除路由: ' + data);
+            refreshRouteTable();
+        })
+        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+function setRouteNick() {
+    var mac = document.getElementById('route_nick_mac').value.trim();
+    var nickname = document.getElementById('route_nick_name').value.trim();
+    if (!mac || !nickname) { showResult('result_route', '请输入MAC和昵称'); return; }
+    apiFetch('/api/set_nickname?mac=' + encodeURIComponent(mac) + '&nickname=' + encodeURIComponent(nickname), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_route', '设置昵称: ' + data))
+        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+</script>
+</body>
+</html>

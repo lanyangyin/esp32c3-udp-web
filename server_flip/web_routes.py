@@ -126,6 +126,82 @@ def setup_routes(app):
             )
         return make_response(data, content_type='application/json')
 
+    # # ========================================================================
+    # # 页面路由（显式添加，避免循环）
+    # # ========================================================================
+    # # ---------- 页面路由（显式添加，避免循环） ----------
+    # @app.route("/home", methods=["GET"])
+    # def home_page(request):
+    #     try:
+    #         with open("web/home.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/broadcast", methods=["GET"])
+    # def broadcast_page(request):
+    #     try:
+    #         with open("web/broadcast.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/unicast", methods=["GET"])
+    # def unicast_page(request):
+    #     try:
+    #         with open("web/unicast.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/neighbor", methods=["GET"])
+    # def neighbor_page(request):
+    #     try:
+    #         with open("web/neighbor.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/route", methods=["GET"])
+    # def route_page(request):
+    #     try:
+    #         with open("web/route.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/ap", methods=["GET"])
+    # def ap_page(request):
+    #     try:
+    #         with open("web/ap.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/sta", methods=["GET"])
+    # def sta_page(request):
+    #     try:
+    #         with open("web/sta.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/udp", methods=["GET"])
+    # def udp_page(request):
+    #     try:
+    #         with open("web/udp.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+    #
+    # @app.route("/system", methods=["GET"])
+    # def system_page(request):
+    #     try:
+    #         with open("web/system.html", "r") as f:
+    #             return f.read(), 200, {"Content-Type": "text/html"}
+    #     except:
+    #         return "Page not found", 404
+
     # ========================================================================
     # API：系统配置修改
     # ========================================================================

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-C3 控制台 - 主页</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+        h2 { margin-top: 0; }
+        .section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; background: #fff; }
+        input, button, textarea { padding: 8px 10px; margin: 3px 5px 3px 0; border: 1px solid #ccc; border-radius: 4px; }
+        textarea { width: 100%; height: 60px; resize: vertical; font-family: inherit; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #45a049; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        button.small { padding: 2px 6px; font-size: 0.7rem; margin-left: 5px; background: #2196F3; }
+        .result { background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto; font-size: 0.95em; }
+        .example { color: #555; font-size: 0.9em; margin-top: 5px; background: #f5f5f5; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+        .nav { background: #333; padding: 10px; color: #fff; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        .nav a { color: #fff; padding: 5px 12px; text-decoration: none; border-radius: 4px; cursor: pointer; }
+        .nav a:hover { background: #555; }
+        .nav a.active { background: #4CAF50; }
+        .page { display: block; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .status-item { background: #f5f5f5; padding: 5px 10px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .status-item span { flex: 1; }
+        .msg-area { background: #e8f4f8; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 0.9em; font-family: 'Courier New', monospace; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #bcd8e6; }
+        .device-list, .route-table { background: #f0f0f0; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+        .route-table { max-height: 300px; }
+        @media (max-width: 600px) {
+            .status-grid { grid-template-columns: 1fr; }
+            .nav a { padding: 4px 8px; font-size: 0.85rem; }
+            input, button, textarea { width: 100%; margin: 5px 0; }
+            .section { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="nav">
+    <a href="/home" class="active">主页</a>
+    <a href="/broadcast">广播</a>
+    <a href="/unicast">单播</a>
+    <a href="/neighbor">邻居表</a>
+    <a href="/route">路由表</a>
+    <a href="/ap">AP设置</a>
+    <a href="/sta">STA设置</a>
+    <a href="/udp">UDP设置</a>
+    <a href="/system">系统设置</a>
+</div>
+
+<div class="page">
+    <h2>ESP32-C3 控制台 - 状态总览</h2>
+    <button onclick="fetchAllStatus()" style="margin-bottom:20px;">刷新所有状态</button>
+
+    <div class="section">
+        <h3>系统状态</h3>
+        <div class="status-grid">
+            <div class="status-item">AP SSID: <span id="ap_ssid">-</span><button class="small" onclick="fetchApStatus()">↻</button></div>
+            <div class="status-item">AP IP: <span id="ap_ip">-</span><button class="small" onclick="fetchApStatus()">↻</button></div>
+            <div class="status-item">STA SSID: <span id="sta_ssid">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+            <div class="status-item">STA IP: <span id="sta_ip">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+            <div class="status-item">STA 连接状态: <span id="sta_connected">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+            <div class="status-item">STA 超时: <span id="sta_timeout">-</span>s<button class="small" onclick="fetchStaTimeout()">↻</button></div>
+            <div class="status-item">UDP 接收端口: <span id="udp_recv_port">-</span><button class="small" onclick="fetchUdpRecvPort()">↻</button></div>
+            <div class="status-item">UDP 目标端口: <span id="udp_broadcast_port">-</span><button class="small" onclick="fetchUdpBroadcastPort()">↻</button></div>
+            <div class="status-item">UDP 轮询间隔: <span id="poll_interval">-</span>ms<button class="small" onclick="fetchPollInterval()">↻</button></div>
+            <div class="status-item">LED 引脚: <span id="led_pin">-</span><button class="small" onclick="fetchLedPin()">↻</button></div>
+            <div class="status-item">LED 状态: <span id="led_status">-</span><button class="small" onclick="fetchLedStatus()">↻</button></div>
+            <div class="status-item">内存占用: <span id="memory_usage">-</span><button class="small" onclick="fetchMemory()">↻</button></div>
+            <div class="status-item">自身 MAC: <span id="self_mac">-</span><button class="small" onclick="fetchSelfMac()">↻</button></div>
+        </div>
+        <div class="example">状态 API 示例：/api/get_ap_status, /api/get_sta_status, /api/get_sta_timeout, ...</div>
+    </div>
+
+    <div class="section">
+        <h3>连接设备（仅显示）</h3>
+        <button onclick="showConnectedMacs()">扫描并显示</button>
+        <pre id="connectedMacs" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px; max-height:150px; overflow-y:auto;"></pre>
+        <div class="example">API: /api/get_macs</div>
+    </div>
+
+    <div class="section">
+        <h3>已记录昵称</h3>
+        <button onclick="showNicknames()">显示所有昵称</button>
+        <pre id="nicknameList" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px; max-height:150px; overflow-y:auto;"></pre>
+        <div class="example">API: /api/get_nicknames</div>
+    </div>
+
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result" class="result">等待操作...</div>
+    </div>
+</div>
+
+<script>
+// 所有 API 请求使用相对路径，自动指向当前主机
+function apiFetch(endpoint, options) {
+    return fetch(endpoint, options);
+}
+
+function showResult(containerId, text) {
+    const el = document.getElementById(containerId);
+    if (el) el.textContent = text;
+}
+
+function fetchApStatus() {
+    apiFetch('/api/get_ap_status').then(res => res.json()).then(data => {
+        document.getElementById('ap_ssid').textContent = data.ssid || '-';
+        document.getElementById('ap_ip').textContent = data.ip || '-';
+    }).catch(() => {});
+}
+function fetchStaStatus() {
+    apiFetch('/api/get_sta_status').then(res => res.json()).then(data => {
+        document.getElementById('sta_ssid').textContent = data.ssid || '-';
+        document.getElementById('sta_ip').textContent = data.ip || '-';
+        document.getElementById('sta_connected').textContent = data.connected ? '已连接' : '未连接';
+    }).catch(() => {});
+}
+function fetchStaTimeout() {
+    apiFetch('/api/get_sta_timeout').then(res => res.json()).then(data => {
+        document.getElementById('sta_timeout').textContent = data.value || '-';
+    }).catch(() => {});
+}
+function fetchUdpRecvPort() {
+    apiFetch('/api/get_udp_recv_port').then(res => res.json()).then(data => {
+        document.getElementById('udp_recv_port').textContent = data.value || '-';
+    }).catch(() => {});
+}
+function fetchUdpBroadcastPort() {
+    apiFetch('/api/get_udp_broadcast_port').then(res => res.json()).then(data => {
+        document.getElementById('udp_broadcast_port').textContent = data.value || '-';
+    }).catch(() => {});
+}
+function fetchPollInterval() {
+    apiFetch('/api/get_udp_poll_interval').then(res => res.json()).then(data => {
+        document.getElementById('poll_interval').textContent = data.interval || '-';
+    }).catch(() => {});
+}
+function fetchLedPin() {
+    apiFetch('/api/get_led_pin').then(res => res.json()).then(data => {
+        document.getElementById('led_pin').textContent = data.pin || '-';
+    }).catch(() => {});
+}
+function fetchLedStatus() {
+    apiFetch('/api/get_led_status').then(res => res.json()).then(data => {
+        document.getElementById('led_status').textContent = data.status || '-';
+    }).catch(() => {});
+}
+function fetchMemory() {
+    apiFetch('/api/memory').then(res => res.json()).then(data => {
+        var used = data.used || 0, total = data.total || 1;
+        var percent = (used/total*100).toFixed(1);
+        document.getElementById('memory_usage').textContent = used + '/' + total + ' (' + percent + '%)';
+    }).catch(() => {});
+}
+function fetchSelfMac() {
+    apiFetch('/api/get_self_mac').then(res => res.json()).then(data => {
+        document.getElementById('self_mac').textContent = data.mac || '-';
+    }).catch(() => {});
+}
+function fetchAllStatus() {
+    fetchApStatus(); fetchStaStatus(); fetchStaTimeout(); fetchUdpRecvPort();
+    fetchUdpBroadcastPort(); fetchPollInterval(); fetchLedPin(); fetchLedStatus();
+    fetchMemory(); fetchSelfMac();
+}
+
+function showConnectedMacs() {
+    apiFetch('/api/get_macs').then(res => res.text()).then(data => {
+        document.getElementById('connectedMacs').textContent = data;
+    }).catch(err => {
+        document.getElementById('connectedMacs').textContent = '获取失败: ' + err;
+    });
+}
+function showNicknames() {
+    apiFetch('/api/get_nicknames').then(res => res.json()).then(data => {
+        var lines = Object.entries(data).map(([mac, nick]) => mac + ' -> ' + nick);
+        document.getElementById('nicknameList').textContent = lines.join('\n') || '暂无昵称';
+    }).catch(err => {
+        document.getElementById('nicknameList').textContent = '获取失败: ' + err;
+    });
+}
+
+function fetchUdpMessages(containerId) {
+    apiFetch('/api/udp_messages').then(res => res.json()).then(data => {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.length === 0) { container.textContent = '暂无消息'; return; }
+        var lines = data.map(item => {
+            var timeStr = new Date(item.time * 1000).toLocaleTimeString();
+            return timeStr + ' ' + item.addr + ': ' + item.msg;
+        });
+        container.textContent = lines.join('\n\n');
+    }).catch(err => console.error('获取UDP消息失败:', err));
+}
+function refreshUdpMessages(page) {
+    var map = {
+        'broadcast': 'udpMsgList_broadcast',
+        'unicast': 'udpMsgList_unicast',
+        'neighbor': 'udpMsgList_neighbor',
+        'route': 'udpMsgList_route'
+    };
+    var containerId = map[page] || 'udpMsgList_broadcast';
+    showResult('result_' + page, '正在刷新...');
+    fetchUdpMessages(containerId);
+    showResult('result_' + page, '刷新完成');
+}
+function clearUdpMsg(page) {
+    if (!confirm('确定清空所有UDP消息记录吗？')) return;
+    apiFetch('/api/clear_udp_messages', { method: 'POST' }).then(res => res.text()).then(data => {
+        showResult('result_' + page, '清空消息: ' + data);
+        refreshUdpMessages(page);
+    }).catch(err => showResult('result_' + page, '请求失败: ' + err.toString()));
+}
+</script>
+</body>
+</html>

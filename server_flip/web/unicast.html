@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-C3 控制台 - 单播</title>
+    <style>
+        /* 样式与 broadcast.html 完全相同，此处省略，实际文件需包含 */
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+        h2 { margin-top: 0; }
+        .section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; background: #fff; }
+        input, button, textarea { padding: 8px 10px; margin: 3px 5px 3px 0; border: 1px solid #ccc; border-radius: 4px; }
+        textarea { width: 100%; height: 60px; resize: vertical; font-family: inherit; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #45a049; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        button.small { padding: 2px 6px; font-size: 0.7rem; margin-left: 5px; background: #2196F3; }
+        .result { background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto; font-size: 0.95em; }
+        .example { color: #555; font-size: 0.9em; margin-top: 5px; background: #f5f5f5; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+        .nav { background: #333; padding: 10px; color: #fff; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        .nav a { color: #fff; padding: 5px 12px; text-decoration: none; border-radius: 4px; cursor: pointer; }
+        .nav a:hover { background: #555; }
+        .nav a.active { background: #4CAF50; }
+        .page { display: block; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .status-item { background: #f5f5f5; padding: 5px 10px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .status-item span { flex: 1; }
+        .msg-area { background: #e8f4f8; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 0.9em; font-family: 'Courier New', monospace; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #bcd8e6; }
+        .device-list, .route-table { background: #f0f0f0; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+        .route-table { max-height: 300px; }
+        @media (max-width: 600px) {
+            .status-grid { grid-template-columns: 1fr; }
+            .nav a { padding: 4px 8px; font-size: 0.85rem; }
+            input, button, textarea { width: 100%; margin: 5px 0; }
+            .section { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="nav">
+    <a href="/home">主页</a>
+    <a href="/broadcast">广播</a>
+    <a href="/unicast" class="active">单播</a>
+    <a href="/neighbor">邻居表</a>
+    <a href="/route">路由表</a>
+    <a href="/ap">AP设置</a>
+    <a href="/sta">STA设置</a>
+    <a href="/udp">UDP设置</a>
+    <a href="/system">系统设置</a>
+</div>
+
+<div class="page">
+    <h2>ESP32-C3 控制台 - UDP单播</h2>
+    <div class="section">
+        <h3>AP 单播（IP尾号）</h3>
+        <label>IP尾号: <input type="number" id="uc_ip_ap" value="3" min="1" max="254"></label>
+        <label>内容:</label>
+        <textarea id="uc_content_ap">Hello</textarea>
+        <button onclick="unicastAp()">发送</button>
+        <div class="example">示例: /api/udp_send_ap (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>STA 单播（IP尾号）</h3>
+        <label>IP尾号: <input type="number" id="uc_ip_sta" value="3" min="1" max="254"></label>
+        <label>内容:</label>
+        <textarea id="uc_content_sta">Hello</textarea>
+        <button onclick="unicastSta()">发送</button>
+        <div class="example">示例: /api/udp_send_sta (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>任意 IP 单播（完整IP）</h3>
+        <label>目标IP: <input type="text" id="target_ip" placeholder="192.168.8.100"></label>
+        <label>内容:</label>
+        <textarea id="send_ip_content">Hello</textarea>
+        <button onclick="sendToIp()">发送</button>
+        <div class="example">示例: /api/udp_send_ip (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>昵称单播（需先设置昵称）</h3>
+        <label>目标昵称: <input type="text" id="send_nick" placeholder="mydevice"></label>
+        <label>内容:</label>
+        <textarea id="send_msg">Hello</textarea>
+        <button onclick="sendByNick()">发送</button>
+        <div class="example">示例: /api/send_to_nick (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>发送路由消息</h3>
+        <label>目标MAC: <input type="text" id="route_dst_mac" placeholder="8C:FD:49:55:02:F4"></label>
+        <label>命令: <input type="text" id="route_cmd_msg" placeholder="Hello"></label>
+        <button onclick="sendRouteMsg()">发送</button>
+        <div class="example">API: /api/send_route_message (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>UDP 消息列表</h3>
+        <div id="udpMsgList_unicast" class="msg-area">等待消息...</div>
+        <button onclick="clearUdpMsg('unicast')" style="background:#f44336;">清空</button>
+        <button onclick="refreshUdpMessages('unicast')" style="background:#2196F3;">刷新</button>
+        <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_unicast" class="result">等待操作...</div>
+    </div>
+</div>
+
+<script>
+function apiFetch(endpoint, options) {
+    return fetch(endpoint, options);
+}
+function showResult(containerId, text) {
+    const el = document.getElementById(containerId);
+    if (el) el.textContent = text;
+}
+function fetchUdpMessages(containerId) {
+    apiFetch('/api/udp_messages').then(res => res.json()).then(data => {
+        var container = document.getElementById(containerId);
+        if (!container) return;
+        if (data.length === 0) { container.textContent = '暂无消息'; return; }
+        var lines = data.map(item => {
+            var timeStr = new Date(item.time * 1000).toLocaleTimeString();
+            return timeStr + ' ' + item.addr + ': ' + item.msg;
+        });
+        container.textContent = lines.join('\n\n');
+    }).catch(err => console.error('获取UDP消息失败:', err));
+}
+function refreshUdpMessages(page) {
+    var map = {
+        'broadcast': 'udpMsgList_broadcast',
+        'unicast': 'udpMsgList_unicast',
+        'neighbor': 'udpMsgList_neighbor',
+        'route': 'udpMsgList_route'
+    };
+    var containerId = map[page] || 'udpMsgList_broadcast';
+    showResult('result_' + page, '正在刷新...');
+    fetchUdpMessages(containerId);
+    showResult('result_' + page, '刷新完成');
+}
+function clearUdpMsg(page) {
+    if (!confirm('确定清空所有UDP消息记录吗？')) return;
+    apiFetch('/api/clear_udp_messages', { method: 'POST' }).then(res => res.text()).then(data => {
+        showResult('result_' + page, '清空消息: ' + data);
+        refreshUdpMessages(page);
+    }).catch(err => showResult('result_' + page, '请求失败: ' + err.toString()));
+}
+
+function unicastAp() {
+    var ip_tail = document.getElementById('uc_ip_ap').value.trim();
+    var content = document.getElementById('uc_content_ap').value.trim();
+    if (!ip_tail || !content) { showResult('result_unicast', '请输入IP尾号和内容'); return; }
+    apiFetch('/api/udp_send_ap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip_tail: ip_tail, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', 'AP单播: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function unicastSta() {
+    var ip_tail = document.getElementById('uc_ip_sta').value.trim();
+    var content = document.getElementById('uc_content_sta').value.trim();
+    if (!ip_tail || !content) { showResult('result_unicast', '请输入IP尾号和内容'); return; }
+    apiFetch('/api/udp_send_sta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip_tail: ip_tail, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', 'STA单播: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function sendToIp() {
+    var ip = document.getElementById('target_ip').value.trim();
+    var content = document.getElementById('send_ip_content').value.trim();
+    if (!ip || !content) { showResult('result_unicast', '请输入目标IP和内容'); return; }
+    apiFetch('/api/udp_send_ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: ip, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', '发送到IP: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function sendByNick() {
+    var nickname = document.getElementById('send_nick').value.trim();
+    var content = document.getElementById('send_msg').value.trim();
+    if (!nickname || !content) { showResult('result_unicast', '请输入昵称和消息'); return; }
+    apiFetch('/api/send_to_nick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nickname, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', '按昵称发送: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function sendRouteMsg() {
+    var mac = document.getElementById('route_dst_mac').value.trim();
+    var msg = document.getElementById('route_cmd_msg').value.trim();
+    if (!mac || !msg) { showResult('result_unicast', '请输入MAC和命令'); return; }
+    apiFetch('/api/send_route_message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dst_mac: mac, cmd_msg: msg })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', '发送路由消息: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+</script>
+</body>
+</html>

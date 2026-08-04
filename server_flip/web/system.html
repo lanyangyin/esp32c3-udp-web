@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-C3 控制台 - 系统设置</title>
+    <style>
+        /* 样式与 udp.html 相同，此处省略，实际文件需包含完整样式 */
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+        h2 { margin-top: 0; }
+        .section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; background: #fff; }
+        input, button, textarea { padding: 8px 10px; margin: 3px 5px 3px 0; border: 1px solid #ccc; border-radius: 4px; }
+        textarea { width: 100%; height: 60px; resize: vertical; font-family: inherit; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #45a049; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        button.small { padding: 2px 6px; font-size: 0.7rem; margin-left: 5px; background: #2196F3; }
+        .result { background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto; font-size: 0.95em; }
+        .example { color: #555; font-size: 0.9em; margin-top: 5px; background: #f5f5f5; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+        .nav { background: #333; padding: 10px; color: #fff; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        .nav a { color: #fff; padding: 5px 12px; text-decoration: none; border-radius: 4px; cursor: pointer; }
+        .nav a:hover { background: #555; }
+        .nav a.active { background: #4CAF50; }
+        .page { display: block; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .status-item { background: #f5f5f5; padding: 5px 10px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .status-item span { flex: 1; }
+        .msg-area { background: #e8f4f8; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 0.9em; font-family: 'Courier New', monospace; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #bcd8e6; }
+        .device-list, .route-table { background: #f0f0f0; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+        .route-table { max-height: 300px; }
+        @media (max-width: 600px) {
+            .status-grid { grid-template-columns: 1fr; }
+            .nav a { padding: 4px 8px; font-size: 0.85rem; }
+            input, button, textarea { width: 100%; margin: 5px 0; }
+            .section { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="nav">
+    <a href="/home">主页</a>
+    <a href="/broadcast">广播</a>
+    <a href="/unicast">单播</a>
+    <a href="/neighbor">邻居表</a>
+    <a href="/route">路由表</a>
+    <a href="/ap">AP设置</a>
+    <a href="/sta">STA设置</a>
+    <a href="/udp">UDP设置</a>
+    <a href="/system" class="active">系统设置</a>
+</div>
+
+<div class="page">
+    <h2>ESP32-C3 控制台 - 系统设置</h2>
+    <div class="section">
+        <h3>本机昵称设置</h3>
+        <label>新昵称: <input type="text" id="self_nickname_input" placeholder="请输入新昵称"></label>
+        <button onclick="setSelfNickname()">设置（立即生效）</button>
+        <br><br>
+        <button onclick="getSelfNickname()">获取当前昵称</button>
+        <span id="selfNicknameDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/set_self_nickname (POST)</div>
+    </div>
+    <div class="section">
+        <h3>LED 引脚配置</h3>
+        <label>引脚号: <input type="number" id="led_pin_new" min="0" max="21"></label>
+        <button onclick="setLedPin()">设置（需重启）</button>
+        <br><br>
+        <button onclick="getLedPin()">获取当前引脚</button>
+        <span id="ledPinDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/get_led_pin</div>
+    </div>
+    <div class="section">
+        <h3>重置引脚配置</h3>
+        <label>引脚号: <input type="number" id="reset_pin_new" min="0" max="21" value="10"></label>
+        <button onclick="setResetPin()">设置（需重启）</button>
+        <br><br>
+        <label>保持时间(秒): <input type="number" id="reset_hold_time_new" min="2" max="60" value="8"></label>
+        <button onclick="setResetHoldTime()">设置（需重启）</button>
+        <br><br>
+        <button onclick="getResetStatus()">获取当前配置</button>
+        <span id="resetStatusDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/set_reset_pin, /api/set_reset_hold_time, /api/get_reset_status</div>
+    </div>
+    <div class="section">
+        <h3>重启设备</h3>
+        <button onclick="rebootDevice()" style="background:#f44336;">立即重启</button>
+        <div class="example">API: /api/reboot</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_system" class="result">等待操作...</div>
+    </div>
+</div>
+
+<script>
+function apiFetch(endpoint, options) {
+    return fetch(endpoint, options);
+}
+function showResult(containerId, text) {
+    const el = document.getElementById(containerId);
+    if (el) el.textContent = text;
+}
+
+function setSelfNickname() {
+    var nickname = document.getElementById('self_nickname_input').value.trim();
+    if (!nickname) {
+        showResult('result_system', '请输入新昵称');
+        return;
+    }
+    apiFetch('/api/set_self_nickname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nickname })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_system', '修改本机昵称: ' + data);
+        getSelfNickname();
+    })
+    .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+function getSelfNickname() {
+    apiFetch('/api/get_self_mac')
+        .then(res => res.json())
+        .then(data => {
+            var mac = data.mac || '';
+            if (!mac) {
+                document.getElementById('selfNicknameDisplay').textContent = '无法获取MAC';
+                return;
+            }
+            apiFetch('/api/get_nicknames')
+                .then(res => res.json())
+                .then(nicks => {
+                    var nick = nicks[mac] || '未设置';
+                    document.getElementById('selfNicknameDisplay').textContent = '当前昵称: ' + nick;
+                    document.getElementById('self_nickname_input').value = nick !== '未设置' ? nick : '';
+                })
+                .catch(() => {
+                    document.getElementById('selfNicknameDisplay').textContent = '获取昵称失败';
+                });
+        })
+        .catch(() => {
+            document.getElementById('selfNicknameDisplay').textContent = '获取MAC失败';
+        });
+}
+function setLedPin() {
+    var pin = document.getElementById('led_pin_new').value.trim();
+    if (!pin) { showResult('result_system', '请输入引脚号'); return; }
+    apiFetch('/api/set_led_pin?pin=' + encodeURIComponent(pin), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_system', '修改LED引脚: ' + data);
+            getLedPin();
+        })
+        .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+function getLedPin() {
+    apiFetch('/api/get_led_pin')
+        .then(res => res.json())
+        .then(data => {
+            var pin = data.pin || '';
+            document.getElementById('led_pin_new').value = pin;
+            document.getElementById('ledPinDisplay').textContent = '当前引脚: GPIO' + (pin || '-');
+        })
+        .catch(err => {
+            document.getElementById('ledPinDisplay').textContent = '获取失败';
+        });
+}
+function setResetPin() {
+    var pin = document.getElementById('reset_pin_new').value.trim();
+    if (!pin) { showResult('result_system', '请输入引脚号'); return; }
+    apiFetch('/api/set_reset_pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: parseInt(pin) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_system', '设置重置引脚: ' + data);
+        getResetStatus();
+    })
+    .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+function setResetHoldTime() {
+    var seconds = document.getElementById('reset_hold_time_new').value.trim();
+    if (!seconds) { showResult('result_system', '请输入秒数'); return; }
+    apiFetch('/api/set_reset_hold_time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seconds: parseInt(seconds) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_system', '设置保持时间: ' + data);
+        getResetStatus();
+    })
+    .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+function getResetStatus() {
+    apiFetch('/api/get_reset_status')
+        .then(res => res.json())
+        .then(data => {
+            var pin = data.pin || '未设置';
+            var time = data.hold_time || '未设置';
+            document.getElementById('reset_pin_new').value = pin;
+            document.getElementById('reset_hold_time_new').value = time;
+            document.getElementById('resetStatusDisplay').textContent = '当前引脚: GPIO' + pin + ', 保持时间: ' + time + ' 秒';
+        })
+        .catch(err => {
+            document.getElementById('resetStatusDisplay').textContent = '获取失败';
+        });
+}
+function rebootDevice() {
+    if (!confirm('确定要重启设备吗？')) return;
+    apiFetch('/api/reboot', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_system', '重启: ' + data))
+        .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+</script>
+</body>
+</html>

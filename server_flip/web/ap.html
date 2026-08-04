@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-C3 控制台 - AP设置</title>
+    <style>
+        /* 样式与 route.html 相同，此处省略，实际文件需包含完整样式 */
+        * { box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
+        h2 { margin-top: 0; }
+        .section { border: 1px solid #ddd; padding: 15px; margin-bottom: 20px; border-radius: 6px; background: #fff; }
+        input, button, textarea { padding: 8px 10px; margin: 3px 5px 3px 0; border: 1px solid #ccc; border-radius: 4px; }
+        textarea { width: 100%; height: 60px; resize: vertical; font-family: inherit; }
+        button { background: #4CAF50; color: white; border: none; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #45a049; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        button.small { padding: 2px 6px; font-size: 0.7rem; margin-left: 5px; background: #2196F3; }
+        .result { background: #f0f0f0; padding: 10px; border-radius: 4px; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto; font-size: 0.95em; }
+        .example { color: #555; font-size: 0.9em; margin-top: 5px; background: #f5f5f5; padding: 4px 8px; border-radius: 3px; display: inline-block; }
+        .nav { background: #333; padding: 10px; color: #fff; text-align: center; display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+        .nav a { color: #fff; padding: 5px 12px; text-decoration: none; border-radius: 4px; cursor: pointer; }
+        .nav a:hover { background: #555; }
+        .nav a.active { background: #4CAF50; }
+        .page { display: block; padding: 20px; max-width: 1200px; margin: 0 auto; }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+        .status-item { background: #f5f5f5; padding: 5px 10px; border-radius: 3px; display: flex; justify-content: space-between; align-items: center; }
+        .status-item span { flex: 1; }
+        .msg-area { background: #e8f4f8; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-size: 0.9em; font-family: 'Courier New', monospace; line-height: 1.6; white-space: pre-wrap; word-wrap: break-word; border: 1px solid #bcd8e6; }
+        .device-list, .route-table { background: #f0f0f0; padding: 10px; border-radius: 4px; max-height: 200px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; }
+        .route-table { max-height: 300px; }
+        @media (max-width: 600px) {
+            .status-grid { grid-template-columns: 1fr; }
+            .nav a { padding: 4px 8px; font-size: 0.85rem; }
+            input, button, textarea { width: 100%; margin: 5px 0; }
+            .section { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="nav">
+    <a href="/home">主页</a>
+    <a href="/broadcast">广播</a>
+    <a href="/unicast">单播</a>
+    <a href="/neighbor">邻居表</a>
+    <a href="/route">路由表</a>
+    <a href="/ap" class="active">AP设置</a>
+    <a href="/sta">STA设置</a>
+    <a href="/udp">UDP设置</a>
+    <a href="/system">系统设置</a>
+</div>
+
+<div class="page">
+    <h2>ESP32-C3 控制台 - AP设置</h2>
+    <div class="section">
+        <h3>查看当前 AP 配置</h3>
+        <button onclick="getApConfig()">获取 AP SSID/密码</button>
+        <pre id="apConfigDisplay" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px;"></pre>
+        <div class="example">API: /api/get_ap_ssid_password</div>
+    </div>
+    <div class="section">
+        <h3>修改 AP SSID 和密码</h3>
+        <label>SSID: <input type="text" id="ap_ssid_new" placeholder="新SSID"></label>
+        <label>密码: <input type="text" id="ap_password_new" placeholder="新密码"></label>
+        <button onclick="setApSsidPassword()">设置（需重启生效）</button>
+        <div class="example">示例: /api/set_ap_ssid_password?ssid=MyAP&password=12345678</div>
+    </div>
+    <div class="section">
+        <h3>AP 网段设置（IP倒数第二段）</h3>
+        <label>新网段（如 192.168.<b>5</b>.1）: <input type="number" id="ap_net_segment" min="0" max="255" value="4"></label>
+        <button onclick="setApNetSegment()">设置网段（需重启）</button>
+        <br><br>
+        <button onclick="loadApNetSegment()">获取当前网段</button>
+        <div class="example">示例: /api/set_ap_net_segment?segment=5</div>
+    </div>
+    <div class="section">
+        <h3>重置 AP 配置为默认</h3>
+        <button onclick="resetApConfig()" style="background:#f44336;">重置</button>
+        <div class="example">API: /api/reset_ap_config</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_ap" class="result">等待操作...</div>
+    </div>
+</div>
+
+<script>
+function apiFetch(endpoint, options) {
+    return fetch(endpoint, options);
+}
+function showResult(containerId, text) {
+    const el = document.getElementById(containerId);
+    if (el) el.textContent = text;
+}
+
+function getApConfig() {
+    apiFetch('/api/get_ap_ssid_password')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('apConfigDisplay').textContent = 'SSID: ' + (data.ssid || '-') + '\n密码: ' + (data.password || '-');
+        })
+        .catch(err => {
+            document.getElementById('apConfigDisplay').textContent = '获取失败: ' + err;
+        });
+}
+function setApSsidPassword() {
+    var ssid = document.getElementById('ap_ssid_new').value.trim();
+    var password = document.getElementById('ap_password_new').value.trim();
+    if (!ssid) { showResult('result_ap', '请输入SSID'); return; }
+    apiFetch('/api/set_ap_ssid_password?ssid=' + encodeURIComponent(ssid) + '&password=' + encodeURIComponent(password), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_ap', '设置AP配置: ' + data))
+        .catch(err => showResult('result_ap', '请求失败: ' + err.toString()));
+}
+function setApNetSegment() {
+    var seg = document.getElementById('ap_net_segment').value.trim();
+    if (!seg) { showResult('result_ap', '请输入网段号'); return; }
+    apiFetch('/api/set_ap_net_segment?segment=' + encodeURIComponent(seg), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_ap', '设置AP网段: ' + data))
+        .catch(err => showResult('result_ap', '请求失败: ' + err.toString()));
+}
+function resetApConfig() {
+    if (!confirm('确定重置AP配置为默认值吗？')) return;
+    apiFetch('/api/reset_ap_config', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_ap', '重置AP配置: ' + data))
+        .catch(err => showResult('result_ap', '请求失败: ' + err.toString()));
+}
+function loadApNetSegment() {
+    apiFetch('/api/get_ap_status')
+        .then(res => res.json())
+        .then(data => {
+            if (data.ip) {
+                var parts = data.ip.split('.');
+                if (parts.length === 4) {
+                    var segment = parseInt(parts[2]);
+                    if (!isNaN(segment) && segment >= 0 && segment <= 255) {
+                        document.getElementById('ap_net_segment').value = segment;
+                    }
+                }
+            }
+        })
+        .catch(err => console.error('获取AP状态失败:', err));
+}
+</script>
+</body>
+</html>
