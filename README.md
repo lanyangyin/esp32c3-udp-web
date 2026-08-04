@@ -1,6 +1,6 @@
 ![img.png](images/img.png)
 
-# ESP32-C3 多功能控制平台
+# ESP32-C3SuperMini 多功能控制平台
 
 基于 MicroPython 的 ESP32-C3 设备固件，集成 Wi-Fi AP/STA、UDP 通信、自组织邻居发现、动态路由、舵机控制、红外遥控（IR05T）、LED 指示及 Web 管理界面。适用于物联网原型、智能家居、机器人控制等场景。
 
