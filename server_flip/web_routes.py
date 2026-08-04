@@ -856,10 +856,13 @@ def setup_routes(app):
         neighbors = neighbor.load_neighbors()
         entry = neighbors.get(mac)
         if not entry:
-            return make_response("设备未在邻居表注册或IP未知", 404, content_type='text/plain; charset=utf-8')
+            route_table = route.load_route_table()
+            entry = route_table.get(mac)
+            if not entry:
+                return make_response("设备未在邻居表注册或路由表注册", 404, content_type='text/plain; charset=utf-8')
         target_ip = entry.get("ip")
         if not target_ip:
-            return make_response("设备未在邻居表注册或IP未知", 404, content_type='text/plain; charset=utf-8')
+            return make_response("设备未在邻居表注册或路由表注册", 404, content_type='text/plain; charset=utf-8')
         success = udp.udp_send_to_ip(target_ip, content)
         if success:
             return make_response(f"消息已发送给昵称 '{nickname}'", 200, content_type='text/plain; charset=utf-8')
