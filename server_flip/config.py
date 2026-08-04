@@ -353,19 +353,43 @@ def delete_neighbor(mac):
         return True
     return False
 
+def delete_neighbors(mac_list):
+    """
+    从邻居表中批量删除多个 MAC 地址。
+    参数 mac_list: 字符串列表，每个元素为 MAC 地址（可自动标准化）。
+    返回实际删除的条目数量。
+    """
+    if not mac_list:
+        return 0
+    # 标准化所有 MAC
+    normalized = [mac_to_str(m) for m in mac_list]
+    neighbors = load_neighbors()
+    deleted_count = 0
+    for mac in normalized:
+        if mac in neighbors:
+            del neighbors[mac]
+            deleted_count += 1
+    if deleted_count > 0:
+        save_neighbors(neighbors)
+    return deleted_count
+
 def ttl_decrement_neighbors():
-    """遍历邻居表，将所有条目的 TTL 减 1，删除 TTL <= 0 的条目，返回删除数量"""
+    """
+    将邻居表中所有条目的 TTL 减 1，删除 TTL <= 0 的条目。
+    返回被删除的 MAC 列表。
+    """
     neighbors = load_neighbors()
     to_delete = []
     for mac, entry in neighbors.items():
+        print(f"[邻居表操作] {mac} ttl: {entry['ttl']}-1")
         entry["ttl"] -= 1
         if entry["ttl"] <= 0:
+            print(f"[邻居表操作] {mac} ttl归零")
             to_delete.append(mac)
     for mac in to_delete:
         del neighbors[mac]
-    if to_delete:
-        save_neighbors(neighbors)
-    return len(to_delete)
+    save_neighbors(neighbors)
+    return to_delete
 
 def reset_neighbors():
     """清空邻居表"""
@@ -486,22 +510,42 @@ def delete_nickname(mac):
         return True
     return False
 
+def delete_nicknames(mac_list):
+    """
+    从昵称表中批量删除多个 MAC 地址。
+    返回实际删除的条目数量。
+    """
+    if not mac_list:
+        return 0
+    normalized = [mac_to_str(m) for m in mac_list]
+    nicknames = load_nicknames()
+    deleted_count = 0
+    for mac in normalized:
+        if mac in nicknames:
+            del nicknames[mac]
+            deleted_count += 1
+    if deleted_count > 0:
+        save_nicknames(nicknames)
+    return deleted_count
 
 def route_ttl_decrement():
     """
-    遍历路由表，将所有条目的 TTL 减 1，删除 TTL <= 0 的条目。
-    返回被删除的条目数量。
+    将路由表中所有条目的 TTL 减 1，删除 TTL <= 0 的条目。
+    返回被删除的 MAC 列表。
     """
     table = load_route_table()
     to_delete = []
     for mac, entry in table.items():
+        print(f"[路由表操作] {mac} ttl: {entry['ttl']}-1")
         entry["ttl"] -= 1
         if entry["ttl"] <= 0:
+            print(f"[路由表操作] {mac} ttl归零")
             to_delete.append(mac)
     for mac in to_delete:
+        print(f"[路由表操作] 从路由表删除 {mac} ")
         del table[mac]
     save_route_table(table)
-    return len(to_delete)
+    return to_delete
 
 
 # =============================================================================
@@ -548,24 +592,27 @@ def get_route(mac):
     table = load_route_table()
     return table.get(mac)
 
-def add_or_update_route(mac, ip, ttl=None, step=ROUTE_STEP):
+def add_or_update_route(mac, ip, ttl=None, step=ROUTE_STEP, source=None):
     """
-    添加或更新一个路由条目
-    - mac 自动标准化
-    - 如果 ttl 为 None，则使用当前 TTL（若存在）或默认 4
+    添加或更新路由条目，source 为来源 MAC（谁告诉我的）。
     """
     mac = mac_to_str(mac)
     table = load_route_table()
     if mac in table:
-        # 更新 IP，保留原 TTL（或使用指定 ttl）
         table[mac]["ip"] = ip
         if ttl is not None:
             table[mac]["ttl"] = ttl
         if step is not None:
             table[mac]["step"] = step
+        if source is not None:
+            table[mac]["source"] = source
     else:
-        # 新增，ttl 默认为 4
-        table[mac] = {"ip": ip, "ttl": ttl if ttl is not None else 4, "step": step}
+        table[mac] = {
+            "ip": ip,
+            "ttl": ttl if ttl is not None else 4,
+            "step": step,
+            "source": source
+        }
     save_route_table(table)
     return True
 
@@ -578,6 +625,25 @@ def delete_route(mac):
         save_route_table(table)
         return True
     return False
+
+def delete_routes(mac_list):
+    """
+    从路由表中批量删除多个 MAC 地址。
+    返回实际删除的条目数量。
+    """
+    if not mac_list:
+        return 0
+    normalized = [mac_to_str(m) for m in mac_list]
+    table = load_route_table()
+    deleted_count = 0
+    for mac in normalized:
+        if mac in table:
+            del table[mac]
+            deleted_count += 1
+    if deleted_count > 0:
+        save_route_table(table)
+    return deleted_count
+
 
 # =============================================================================
 # 路由配置（route-config.json）
@@ -618,7 +684,7 @@ def save_route_config(cfg):
 
 def delete_device(mac):
     """
-    从邻居表和昵称表中同时删除指定 MAC 的设备。
+    从邻居表和昵称表和路由表中同时删除指定 MAC 的设备。
     返回是否至少删除了一个表中的条目。
     """
     mac = mac_to_str(mac)
@@ -630,6 +696,21 @@ def delete_device(mac):
     if delete_route(mac):
         deleted = True
     return deleted
+
+def delete_devices(mac_list):
+    """
+    从邻居表、昵称表、路由表中批量删除指定 MAC 地址的设备。
+    返回一个字典，包含每个表删除的数量。
+    """
+    if not mac_list:
+        return {"neighbors": 0, "nicknames": 0, "routes": 0}
+    # 标准化所有 MAC
+    normalized = [mac_to_str(m) for m in mac_list]
+    result = {}
+    result["neighbors"] = delete_neighbors(normalized)
+    result["nicknames"] = delete_nicknames(normalized)
+    result["routes"] = delete_routes(normalized)
+    return result
 
 
 # =============================================================================

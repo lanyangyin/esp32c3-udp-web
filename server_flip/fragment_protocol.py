@@ -85,7 +85,8 @@ def _split_utf8_bytes(text, max_bytes, punctuation):
             print(f"  添加片段长度={len(frag.encode('utf-8'))}, 片段内容='{frag[:50]}'")
         start = end
 
-    print(f"[分片] 最终共 {len(fragments)} 片")
+    if DEBUG_FRAGMENT:
+        print(f"[分片] 最终共 {len(fragments)} 片")
     return fragments
 
 
@@ -138,7 +139,8 @@ def send_udp_fragmented(target_ip, port, src_mac, dst_mac, content,
     total_bytes = len(content_bytes)      # 总字节数，用于接收端校验完整性
 
     # ---------- 3. 切分成片（智能分段） ----------
-    print(f"[UDP] 准备分片: content='{content[:50]}{'...' if len(content)>50 else ''}', 总字节数={total_bytes}, max_bytes={max_bytes}")
+    if DEBUG_FRAGMENT:
+        print(f"[UDP] 准备分片: content='{content[:50]}{'...' if len(content)>50 else ''}', 总字节数={total_bytes}, max_bytes={max_bytes}")
 
     if total_bytes == 0:
         fragments = ['']
@@ -197,7 +199,8 @@ def send_udp_fragmented(target_ip, port, src_mac, dst_mac, content,
 
     # ---------- 6. 关闭 socket 并打印完成信息 ----------
     sock.close()
-    print(f"[UDP] 分片发送完成: {sent_count}片, ID={msg_id}, TTL={ttl}, DST={dst_mac}")
+    if DEBUG_FRAGMENT:
+        print(f"[UDP] 分片发送完成: {sent_count}片, ID={msg_id}, TTL={ttl}, DST={dst_mac}")
     return True
 
 
@@ -292,7 +295,8 @@ def reassemble_fragment(parsed, _addr=None):
             ttl_out = cache['ttl']
             # 清理缓存
             del _frag_cache[cache_key]
-            print(f"[UDP] 分片重组完成: {len(cache['fragments'])}片, ID={msg_id}, SRC={src}")
+            if DEBUG_FRAGMENT:
+                print(f"[UDP] 分片重组完成: {len(cache['fragments'])}片, ID={msg_id}, SRC={src}")
             return True, payload, src, dst, tag_out, ttl_out
 
     return False, None, None, None, None, None

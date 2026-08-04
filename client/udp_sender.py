@@ -6,7 +6,7 @@ import socket
 import time
 import fragment_protocol
 import config          # 导入全局配置变量
-from util import get_self_mac
+from util import get_self_mac, get_interface_broadcast, get_other_interface_broadcast
 import wifi
 import route
 import neighbor
@@ -16,7 +16,7 @@ from constants import (
     UDP_RESPONSE_MAX_PACKET,
     UDP_RESPONSE_SLEEP,
     DEFAULT_ROUTE_TTL,
-    BROADCAST_TTL
+    BROADCAST_TTL, DEBUG_FRAGMENT
 )
 
 # =============================================================================
@@ -42,7 +42,39 @@ def send_udp_fragmented_simple(target_ip, dst_mac, content, tag):
     )
 
 
-def send_udp_broadcast_fragmented(tag, interface_mode = "STA", content=None):
+def send_interface_broadcast_fragmented(tag, ip = None, content=None):
+    """同ip端广播分片消息（dst_mac = FF:FF:FF:FF:FF:FF）"""
+    target_ip = get_interface_broadcast(ip)
+    if not target_ip:
+        return False
+    return fragment_protocol.send_udp_fragmented(
+        target_ip=target_ip,
+        port=config.g_udp_broadcast_port,
+        src_mac=get_self_mac(),
+        dst_mac=BROADCAST_MAC,
+        content=content,
+        tag=tag,
+        ttl=BROADCAST_TTL
+    )
+
+
+def send_other_interface_broadcast_fragmented(tag, ip = None, content=None, src_mac=get_self_mac()):
+    """向另一个ip端广播分片消息（dst_mac = FF:FF:FF:FF:FF:FF）"""
+    target_ip = get_other_interface_broadcast(ip)
+    if not target_ip:
+        return False
+    return fragment_protocol.send_udp_fragmented(
+        target_ip=target_ip,
+        port=config.g_udp_broadcast_port,
+        src_mac=src_mac,
+        dst_mac=BROADCAST_MAC,
+        content=content,
+        tag=tag,
+        ttl=BROADCAST_TTL
+    )
+
+
+def send_udp_broadcast_fragmented(tag, interface_mode = "STA", src_mac=get_self_mac(), content=None):
     """广播分片消息（dst_mac = FF:FF:FF:FF:FF:FF）"""
     if interface_mode == "AP":
         target_ip = config.g_ap_broadcast_addr
@@ -56,7 +88,7 @@ def send_udp_broadcast_fragmented(tag, interface_mode = "STA", content=None):
     return fragment_protocol.send_udp_fragmented(
         target_ip=target_ip,
         port=config.g_udp_broadcast_port,
-        src_mac=get_self_mac(),
+        src_mac=src_mac,
         dst_mac=BROADCAST_MAC,
         content=content,
         tag=tag,
@@ -194,32 +226,46 @@ def send_response(text, target_ip, dst_mac:str, direct_transmission:bool=True):
         send_route_message(dst_mac, text)
 
 
+
+# =============================================================================
+# 死亡宣告
+# =============================================================================
+def death_broadcast(mac_list:str, src_mac=get_self_mac()):
+    """发送某一个设备的死亡宣告, mac_list中的mac用逗号隔开"""
+    print(f"[死亡宣告] {src_mac} —> 丢失设备:\n\t{mac_list.replace(',', '\t\n')}")
+    ap_ok = send_udp_broadcast_fragmented(content=mac_list, interface_mode="AP", src_mac=src_mac, tag="死亡触发更新")
+    sta_ok = send_udp_broadcast_fragmented(content=mac_list, interface_mode="STA", src_mac=src_mac, tag="死亡触发更新")
+    return ap_ok and sta_ok
+
+
 # =============================================================================
 # 邻居表
 # =============================================================================
 
-def send_neighbor_register_request(interface_mode="AP"):
-    """发送邻居注册请求（分片格式）[广播]"""
-    send_udp_broadcast_fragmented(tag="邻居注册请求", interface_mode=interface_mode)
-
-
-def send_neighbor_update_request(interface_mode = "AP"):
-    """邻居更新请求（分片格式）[广播]"""
-    send_udp_broadcast_fragmented(tag="邻居更新请求", interface_mode=interface_mode)
-
-
-def send_register_reply(target_ip, dst_mac):
-    """回复邻居注册请求（分片格式）[UDP]，携带本机昵称"""
-    return send_udp_fragmented_simple(
-        target_ip=target_ip,
-        dst_mac=dst_mac,
-        tag="邻居请求回复",
-        content=config.g_device_nickname   # 改为发送昵称
-    )
+# def send_neighbor_register_request(interface_mode="AP"):
+#     """发送邻居注册请求（分片格式）[广播]"""
+#     send_udp_broadcast_fragmented(tag="邻居注册请求", interface_mode=interface_mode)
+#
+#
+# def send_neighbor_update_request(interface_mode = "AP"):
+#     """邻居更新请求（分片格式）[广播]"""
+#     send_udp_broadcast_fragmented(tag="邻居更新请求", interface_mode=interface_mode)
+#
+#
+# def send_register_reply(target_ip, dst_mac):
+#     """回复邻居注册请求（分片格式）[UDP]，携带本机昵称"""
+#     return send_udp_fragmented_simple(
+#         target_ip=target_ip,
+#         dst_mac=dst_mac,
+#         tag="邻居请求回复",
+#         content=config.g_device_nickname   # 改为发送昵称
+#     )
 
 
 def send_neighbor_advertise(interface_mode="AP"):
     """向指定网段广播邻居请求回复（携带本机昵称）"""
+    if DEBUG_FRAGMENT:
+        print(f"[邻居请求回复{interface_mode}]")
     content = config.g_device_nickname  # 发送昵称
     return send_udp_broadcast_fragmented(
         tag="邻居请求回复",
@@ -237,50 +283,60 @@ def send_neighbor_advertise_both():
 # =============================================================================
 # 路由表
 # =============================================================================
-
-
-def send_route_register_request():
-    """发送路由注册请求（在 AP 网段）[广播]"""
-    send_udp_broadcast_fragmented(
-        tag="路由注册请求",
-        interface_mode="AP",
-        content=1
-    )
-
-
-def send_route_register_reply(target_ip, dst_mac):
-    """发送路由注册请求的回复，向来源方向"""
-    send_udp_fragmented_simple(
-        target_ip=target_ip,
-        dst_mac=dst_mac,
-        tag="路由请求回复",
-        content=None
-    )
-
-
-def send_route_update_request():
-    """发送路由更新请求（在 STA 网段）[广播]"""
-    send_udp_broadcast_fragmented(
-        tag="路由更新请求",
-        interface_mode="STA"
-    )
-
-
-def send_route_learn_request():
-    """发送路由学习请求[广播]"""
-    send_udp_broadcast_fragmented(
-        tag="路由学习请求",
-        interface_mode="STA"
-    )
+#
+#
+# def send_route_register_request():
+#     """发送路由注册请求（在 AP 网段）[广播]"""
+#     send_udp_broadcast_fragmented(
+#         tag="路由注册请求",
+#         interface_mode="AP",
+#         content=1
+#     )
+#
+#
+# def send_route_register_reply(target_ip, dst_mac):
+#     """发送路由注册请求的回复，向来源方向"""
+#     send_udp_fragmented_simple(
+#         target_ip=target_ip,
+#         dst_mac=dst_mac,
+#         tag="路由请求回复",
+#         content=None
+#     )
+#
+#
+# def send_route_update_request():
+#     """发送路由更新请求（在 STA 网段）[广播]"""
+#     send_udp_broadcast_fragmented(
+#         tag="路由更新请求",
+#         interface_mode="STA"
+#     )
+#
+#
+# def send_route_learn_request():
+#     """发送路由学习请求[广播]"""
+#     send_udp_broadcast_fragmented(
+#         tag="路由学习请求",
+#         interface_mode="STA"
+#     )
 
 
 def send_route_advertise():
-    """发送路由通告（在 STA 网段）[广播]即使没有路由表也要发出去"""
-    content = ""
-    table = route.load_route_table()
-    if table:
-        mac_step_list = [f"{mac}_{table[mac]['step']}" for mac in list(table.keys())]
-        content = ",".join(mac_step_list)
+    """
+    发送路由通告（在 STA 网段）[广播]即使没有路由表也要发出去
+    我能到达谁——我距离它多远——他的昵称是什么——我从谁那里知道的
+    """
+    mac_step_list = []
+    self_mac = get_self_mac()
+    self_info = f"{self_mac}_0_{config.g_device_nickname}_{self_mac}"
+    """我能到达谁——我距离它多远——他的昵称是什么——我从谁那里知道的"""
+    route_table = route.load_route_table()
+    nickname_table = config.load_nicknames()
+    if route_table:
+        mac_step_list = [f"{mac}_{route_table[mac]['step']}_{nickname_table.get(mac,None)}_{route_table[mac].get('source',None)}" for mac in list(route_table.keys())]
+    mac_step_list.append(self_info)
+    content = ",".join(mac_step_list)
+    if DEBUG_FRAGMENT:
+        print(f"[路由通告STA] \n\t{content.replace(',', '\n\t')}")
     prefix = wifi.get_sta_prefix()
     if not prefix:
         print("[UDP] STA 未连接")
@@ -289,7 +345,7 @@ def send_route_advertise():
     return fragment_protocol.send_udp_fragmented(
         target_ip=target_ip,
         port=config.g_udp_broadcast_port,
-        src_mac=get_self_mac(),
+        src_mac=self_mac,
         dst_mac=BROADCAST_MAC,
         content=content,
         punctuation=',',
@@ -299,17 +355,27 @@ def send_route_advertise():
 
 
 def send_route_advertise_ap():
-    """发送路由通告（在 AP 网段）[广播]即使没有路由表也要发出去"""
-    content = ""
+    """
+    发送路由通告（在 AP 网段）[广播]即使没有路由表也要发出去
+    我能到达谁——我距离它多远——他的昵称是什么——我从谁那里知道的
+    """
+    mac_step_list = []
+    self_mac = get_self_mac()
+    self_info = f"{self_mac}_0_{config.g_device_nickname}_{self_mac}"
+    """我能到达谁——我距离它多远——他的昵称是什么——我从谁那里知道的"""
+    route_table = route.load_route_table()
+    nickname_table = config.load_nicknames()
+    if route_table:
+        mac_step_list = [f"{mac}_{route_table[mac]['step']}_{nickname_table.get(mac,None)}_{route_table[mac].get('source',None)}" for mac in list(route_table.keys())]
+    mac_step_list.append(self_info)
+    content = ",".join(mac_step_list)
+    if DEBUG_FRAGMENT:
+        print(f"[路由通告AP] \n\t{content.replace(',', '\n\t')}")
     target_ip = config.g_ap_broadcast_addr   # ✅ 提前赋值，确保定义
-    table = route.load_route_table()
-    if table:
-        mac_step_list = [f"{mac}_{table[mac]['step']}" for mac in list(table.keys())]
-        content = ",".join(mac_step_list)
     return fragment_protocol.send_udp_fragmented(
         target_ip=target_ip,
         port=config.g_udp_broadcast_port,
-        src_mac=get_self_mac(),
+        src_mac=self_mac,
         dst_mac=BROADCAST_MAC,      # 确保 BROADCAST_MAC 已定义
         content=content,
         punctuation=',',

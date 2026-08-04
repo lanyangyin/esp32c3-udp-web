@@ -44,10 +44,12 @@ def get_auth_devices():
     result = []
     for mac, entry in neighbors.items():
         ip = entry.get("ip")
+        ttl = entry.get("ttl")
         if ip:
             result.append({
                 'mac': mac,
                 'ip': ip,
+                'ttl': ttl,
                 'nickname': nicknames.get(mac, '')
             })
     return result

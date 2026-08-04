@@ -112,6 +112,19 @@ def atomic_write(filepath, data):
         except:
             pass
         raise
+
+def dict_keys_diff(a, b):
+    """
+    返回 a 的键集合中，不在 b 的键集合中的键列表。
+    参数 a 和 b 可以是字典或任何可迭代对象（如列表、集合）。
+    若为字典，则取其 .keys()。
+    返回 list。
+    """
+    keys_a = set(a.keys()) if hasattr(a, 'keys') else set(a)
+    keys_b = set(b.keys()) if hasattr(b, 'keys') else set(b)
+    return list(keys_a - keys_b)
+
+
 # =============================================================================
 # 引脚占用管理
 # =============================================================================
@@ -140,3 +153,79 @@ def get_used_pins():
     """返回当前所有已占用引脚的字典副本"""
     with _pin_lock:
         return dict(_used_pins)
+
+# =============================================================================
+# 网络
+# =============================================================================
+
+def _ip_to_int(ip_str):
+    """将点分十进制IP字符串转为整数"""
+    parts = ip_str.split('.')
+    if len(parts) != 4:
+        return 0
+    return (int(parts[0]) << 24) | (int(parts[1]) << 16) | (int(parts[2]) << 8) | int(parts[3])
+
+def _int_to_ip(ip_int):
+    """将整数转为点分十进制IP字符串"""
+    return f"{(ip_int >> 24) & 0xFF}.{(ip_int >> 16) & 0xFF}.{(ip_int >> 8) & 0xFF}.{ip_int & 0xFF}"
+
+def _get_interface_info():
+    """获取AP和STA的IP、子网掩码，返回两个字典或None"""
+    ap_if = network.WLAN(network.AP_IF)
+    sta_if = network.WLAN(network.STA_IF)
+    info = {"AP": None, "STA": None}
+    if ap_if.active():
+        ip, mask, _, _ = ap_if.ifconfig()
+        if ip and ip != '0.0.0.0':
+            info["AP"] = {"ip": ip, "mask": mask, "ip_int": _ip_to_int(ip), "mask_int": _ip_to_int(mask)}
+    if sta_if.active() and sta_if.isconnected():
+        ip, mask, _, _ = sta_if.ifconfig()
+        if ip and ip != '0.0.0.0':
+            info["STA"] = {"ip": ip, "mask": mask, "ip_int": _ip_to_int(ip), "mask_int": _ip_to_int(mask)}
+    return info
+
+def _ip_belongs_to(ip_str, if_info):
+    """判断ip_str是否属于该接口子网"""
+    if not if_info:
+        return False
+    ip_int = _ip_to_int(ip_str)
+    net_addr = if_info["ip_int"] & if_info["mask_int"]
+    return (ip_int & if_info["mask_int"]) == net_addr
+
+def get_interface_broadcast(ip_str):
+    """
+    根据输入的IP地址，判断它属于AP还是STA接口，并返回该接口的广播地址。
+    如果IP不属于任何接口，则返回None。
+    """
+    info = _get_interface_info()
+    for iface, data in info.items():
+        if data and _ip_belongs_to(ip_str, data):
+            # 计算广播地址：网络地址 | (~子网掩码)
+            net_addr = data["ip_int"] & data["mask_int"]
+            broadcast_int = net_addr | (~data["mask_int"] & 0xFFFFFFFF)
+            return _int_to_ip(broadcast_int)
+    return None
+
+def get_other_interface_broadcast(ip_str):
+    """
+    根据输入的IP地址，判断它属于AP还是STA接口，然后返回另一个接口的广播地址。
+    如果IP不属于任何接口，或另一个接口未激活/无IP，则返回None。
+    """
+    info = _get_interface_info()
+    # 确定当前接口类型
+    current_iface = None
+    for iface, data in info.items():
+        if data and _ip_belongs_to(ip_str, data):
+            current_iface = iface
+            break
+    if not current_iface:
+        return None
+    # 获取另一个接口
+    other_iface = "STA" if current_iface == "AP" else "AP"
+    other_data = info.get(other_iface)
+    if not other_data:
+        return None
+    # 计算另一个接口的广播地址
+    net_addr = other_data["ip_int"] & other_data["mask_int"]
+    broadcast_int = net_addr | (~other_data["mask_int"] & 0xFFFFFFFF)
+    return _int_to_ip(broadcast_int)

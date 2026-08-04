@@ -1046,7 +1046,8 @@ function fetchRouteTable() {
             var lines = keys.map(mac => {
                 var entry = data[mac];
                 var nick = entry.nickname || '未设置';
-                return mac + ' -> ' + entry.ip + ' (TTL: ' + entry.ttl + ') 昵称: ' + nick;
+                var dst = entry.distance || '-';
+                return mac + ' -> ' + entry.ip + ' (TTL: ' + entry.ttl + ') 昵称: ' + nick + '    步长: ' + dst;
             });
             display.textContent = lines.join('\n');
         })

@@ -46,14 +46,14 @@ def route_add(mac, ip, ttl_increment=2, step=ROUTE_STEP):
     return True
 
 
-def route_set_ttl(mac, ip, ttl=ROUTE_TTL_MAX, step=ROUTE_STEP):
+def route_set_ttl(mac, ip, ttl=ROUTE_TTL_MAX, step=ROUTE_STEP, source=None):
     """
     强制设置路由条目的 IP 和 TTL（不递增，直接覆盖）。
     若 MAC 不存在则新建。
     返回 True。
     """
     mac = mac_to_str(mac)
-    add_or_update_route(mac, ip, ttl, step)
+    add_or_update_route(mac, ip, ttl, step, source)
     return True
 
 

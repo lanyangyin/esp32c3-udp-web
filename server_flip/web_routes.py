@@ -514,7 +514,7 @@ def setup_routes(app):
             return make_response("暂无已注册设备", 200, content_type='text/plain; charset=utf-8')
         lines = []
         for dev in devices:
-            lines.append(f"{dev['mac']}  IP:{dev['ip']}  昵称:{dev['nickname'] or '未设置'}")
+            lines.append(f"{dev['mac']}  IP:{dev['ip']}  （TTL = {dev['ttl']}） 昵称:{dev['nickname'] or '未设置'}")
         return make_response("\n".join(lines), 200, content_type='text/plain; charset=utf-8')
 
     @app.route("/api/memory", methods=["GET", "OPTIONS"])
@@ -621,13 +621,14 @@ def setup_routes(app):
     @gc_wrapper
     @with_cors
     def route_table_with_nick(request):
-        table = route.load_route_table()
+        route_table = route.load_route_table()
         nicknames = neighbor.load_nicknames()
         result = {}
-        for mac, entry in table.items():
+        for mac, entry in route_table.items():
             result[mac] = {
                 "ip": entry["ip"],
                 "ttl": entry["ttl"],
+                "distance": entry["step"],
                 "nickname": nicknames.get(mac, "")
             }
         return make_response(result, 200, content_type='application/json; charset=utf-8')

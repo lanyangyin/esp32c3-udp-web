@@ -21,11 +21,11 @@ import config          # 导入全局配置变量
 import udp_handlers
 from udp_sender import (
     send_broadcast_once, send_sta_broadcast_once, send_both_broadcast_once,
-    udp_send_to_ip, send_route_message,
-    send_neighbor_register_request, send_neighbor_update_request,
-    send_route_register_request, send_route_update_request,
-    send_route_learn_request, send_route_advertise, send_register_reply, send_route_advertise_ap,
-    send_neighbor_advertise_both, send_route_advertise_both
+    udp_send_to_ip, send_route_message, send_route_advertise_ap, send_route_advertise,
+    # send_neighbor_register_request, send_neighbor_update_request,
+    # send_route_register_request, send_route_update_request,
+    # send_route_learn_request, send_register_reply,
+    send_neighbor_advertise_both, send_route_advertise_both, send_other_interface_broadcast_fragmented, death_broadcast
 )
 from constants import (
     CACHE_CLEAN_INTERVAL,
@@ -78,12 +78,22 @@ def udp_neighbor_routing_reply():
             now = time.time()
             # 定期广播邻居请求回复（携带昵称）
             if now - last_advertise_time >= (config.g_neighbor_advertise_interval + random.randint(0, 5)):
-                neighbor.ttl_decrement_neighbors()
+                deleted_mac_list = neighbor.ttl_decrement_neighbors()
+                if deleted_mac_list:
+                    print(f"[广播邻居请求回复] 邻居表中以下几个设备丢失\n\t{deleted_mac_list}")
+                    config.delete_devices(deleted_mac_list)
+                    content = ",".join(deleted_mac_list)
+                    death_broadcast(content)
                 send_neighbor_advertise_both()
                 last_advertise_time = now
             # 定期广播路由通告
             if now - last_route_advertise_time >= (config.g_route_advertise_interval + random.randint(0, 15)):
-                route.route_ttl_decrement()
+                deleted_mac_list = route.route_ttl_decrement()
+                if deleted_mac_list:
+                    print(f"[广播路由通告] 路由表中以下几个设备丢失\n\t{deleted_mac_list}")
+                    config.delete_devices(deleted_mac_list)
+                    content = ",".join(deleted_mac_list)
+                    death_broadcast(content)
                 send_route_advertise_both()
                 last_route_advertise_time = now
             if now - gc_counter >= 9:
@@ -110,7 +120,6 @@ def udp_receiver():
     UDP 接收线程主循环。
     仅解析分片格式消息，重组后根据 TAG 处理业务逻辑。
     """
-    global gc_counter
     recv_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     recv_sock.bind(('0.0.0.0', config.g_udp_recv_port))
     recv_sock.setblocking(False)
@@ -129,9 +138,9 @@ def udp_receiver():
 
     reset_start_time = None
     last_clean = time.time()
-    last_advertise_time = time.time()
-    last_route_advertise_time = time.time()
-    gc_counter = time.time()
+    # last_advertise_time = time.time()
+    # last_route_advertise_time = time.time()
+    # gc_counter = time.time()
 
     while True:
         try:
@@ -164,13 +173,14 @@ def udp_receiver():
                 sender_ip = addr[0]
                 """消息发送方的IP"""
                 sender_port = addr[1]
+                """消息发送方的端口"""
 
                 try:
                     msg = data.decode('utf-8').strip()
                 except UnicodeError:
                     continue
 
-                # print(f"[UDP] 收到来自 {addr} 的消息: {msg[:100]}...")
+                print(f"[UDP] 收到来自 {addr} 的消息: {msg[:80]}...")
 
                 # ---------- 仅解析分片格式 ----------
                 parsed = fragment_protocol.parse_fragmented_msg(msg)
@@ -194,10 +204,6 @@ def udp_receiver():
                     print(f"[UDP] 忽略来自自身的消息")
                     continue
 
-                # 存储原始消息到列表（用于前端显示）
-                if payload:
-                    add_udp_message(addr, payload)
-
                 if not complete:
                     continue  # 等待更多分片
 
@@ -206,9 +212,21 @@ def udp_receiver():
 
 
                 # ========== 根据 TAG 处理业务逻辑 ==========
-                # ---------- 邻居请求回复 ----------
-                if tag == "邻居请求回复":
-                    print(f"[UDP] 收到邻居请求回复，来自 {src_mac} ({sender_ip})")
+                # ---------- 死亡触发更新 ----------
+                print(f"[UDP] 收到{tag}，来自 {src_mac} ({sender_ip})")
+                if tag == "死亡触发更新":
+                    # 跳过自身（已经单独添加）
+                    if src_mac == util.get_self_mac():
+                        print("[死亡触发更新] 此条从我这发出，不受理")
+                        continue
+                    rest = payload.strip()
+                    if rest:
+                        print(f"[死亡触发更新] {src_mac} —> 以下设备已丢失: \n\t{rest.replace(',', '\n\t')})")
+                        mac_list = [m.strip() for m in rest.split(',') if m.strip()]
+                        config.delete_devices(mac_list)
+                        send_other_interface_broadcast_fragmented("死亡触发更新",sender_ip,mac_list,src_mac)
+                    gc.collect()
+                elif tag == "邻居请求回复":
                     # 更新邻居表（IP）
                     neighbor.update_mac_from_reply(mac_str=src_mac, ip_str=sender_ip)
                     # 提取昵称（payload）
@@ -216,53 +234,74 @@ def udp_receiver():
                         nickname = payload.strip()
                         # 处理冲突并更新昵称表
                         neighbor.resolve_nickname_conflict_and_update(nickname, src_mac)
-                        print(f"[UDP] 邻居昵称更新: {src_mac} -> {nickname}")
+                        print(f"[邻居请求回复] 邻居昵称更新: {src_mac} -> {nickname}")
                     else:
-                        print(f"[UDP] 邻居请求回复中无昵称")
+                        print(f"[邻居请求回复] 邻居请求回复中无昵称")
                     gc.collect()
                 # ---------- 路由通告 ----------
                 elif tag == "路由通告":
-                    # 1. 将发送方自身加入路由表，步距=1
-                    route.route_set_ttl(src_mac, sender_ip, route.ROUTE_TTL_MAX, 1)
                     rest = payload.strip()
                     if rest:
                         mac_step_list = [m.strip() for m in rest.split(',') if m.strip()]
+                        print(f"[路由通告] 接收到路由通告:\n\t {rest.replace(',', '\n\t')}")
                         # 一次性读取路由表到内存
                         table = route.load_route_table()
+                        nicknames_table = config.load_nicknames()
                         added = 0
+                        updated = 0
                         self_mac = util.get_self_mac()
                         for mac_step in mac_step_list:
                             try:
-                                mac, step_str = mac_step.split('_')
+                                analysis = mac_step.split('_')
+                                mac = analysis[0]
+                                step_str = analysis[1]
+                                nickname = analysis[2]
+                                source = analysis[3]
                                 step = int(step_str) + 1
                                 mac = util.mac_to_str(mac)
+                                source = util.mac_to_str(source)
                             except ValueError:
-                                print(f"[ROUTE] 解析通告条目失败: {mac_step}")
+                                print(f"[路由通告] 解析通告条目失败: {mac_step}")
+                                continue
+                            # 来源检查
+                            if source == self_mac:
+                                print(f"[路由通告] 此条从我这获得，不接受: {mac}")
                                 continue
                             # 合法性检查
-                            if step < 1 or step > 255:
-                                print(f"[ROUTE] 步距无效: {step}")
+                            if step < 0 or step > 16:
+                                print(f"[路由通告] 步距无效: {step} > 16")
                                 continue
                             # 跳过自身（已经单独添加）
                             if mac == self_mac:
+                                print(f"[路由通告] 不接受将自身加入路由")
                                 continue
-                            # 跳过发送方自身（已经单独添加）
-                            if mac == src_mac:
-                                continue
+                            # # 跳过发送方自身（已经单独添加）
+                            # if mac == src_mac:
+                            #     print(f"[路由通告] 不接受将自身的消息")
+                            #     continue
                             # 如果已存在且步距更小（更优），则忽略
                             if mac in table and step > table[mac].get("step", 0):
-                                print(f"[ROUTE] 保留已有更优路径 {mac} step={table[mac]['step']} < {step}")
+                                print(f"[路由通告] 保留已有更优路径 {mac} step={table[mac].get('step', 0)} < {step}")
                                 continue
+                            else:
+                                updated += 1
+                                added -= 1
                             # 否则更新（新增或覆盖）
-                            table[mac] = {"ip": sender_ip, "ttl": ROUTE_TTL_MAX, "step": step}
+                            table[mac] = {"ip": sender_ip, "ttl": ROUTE_TTL_MAX, "step": step, "source": src_mac}
+                            nicknames_table[mac] = nickname
                             added += 1
-                            print(f"[ROUTE] 添加/更新路由: {mac} -> {sender_ip}, step={step}")
+                            print(f"[路由通告] 添加/更新路由: {mac} -> {sender_ip}, step={step}")
                         # 一次性保存路由表
                         if added > 0:
                             route.save_route_table(table)
-                        print(f"[ROUTE] 通告处理完成，添加 {added} 条新路由")
+                            config.save_nicknames(nicknames_table)
+                        print(f"[路由通告] 通告处理完成，添加 {added} 条新路由。更新 {updated} 条路由")
                     gc.collect()
                 else:
+                    # 存储原始消息到列表（用于前端显示）
+                    if payload:
+                        add_udp_message(addr, payload)
+
                     my_mac = util.get_self_mac()
                     if dst_mac == my_mac or dst_mac == NULL_MAC or dst_mac == BROADCAST_MAC:
                         # ---------- 用户广播消息 ----------
@@ -274,7 +313,7 @@ def udp_receiver():
                             print(f"[UDP] 未知 TAG={tag}, payload: {payload[:50]}...")
                     else:
                         # 转发前打印
-                        print(f"[DEBUG] 转发消息: payload 类型={type(payload)}, 内容={payload[:50] if isinstance(payload, str) else repr(payload)}")
+                        print(f"[转发消息] 内容={payload[:50] if isinstance(payload, str) else repr(payload)}")
                         # 尝试向邻居转发
                         neighbors = neighbor.load_neighbors()
                         if dst_mac in neighbors:
