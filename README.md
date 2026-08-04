@@ -1,8 +1,4 @@
-好的，我理解您希望将许可证从 MIT 改为 GPL（建议使用 GPLv3）。我会修改 README 中的“许可证”章节，并补充 GPL 的核心要求（如源代码公开、衍生作品同样适用 GPL 等）。同时，为符合 GPL 规范，建议您在每个源代码文件的头部添加版权声明和 GPL 引用（例如：# SPDX-License-Identifier: GPL-3.0-only），但本次仅更新 README 文档。
-
-以下是更新后的 README.md 完整内容（许可证部分已替换为 GPLv3，并在末尾增加简要说明）：
-
----
+![img.png](images/img.png)
 
 # ESP32-C3 多功能控制平台
 

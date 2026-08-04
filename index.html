@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>ESP32-C3 控制台</title>
+    <style>
+        /* ===== 全局重置 ===== */
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: #f9f9f9;
+        }
+        h2 { margin-top: 0; }
+        .section {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            background: #fff;
+        }
+        input, button, textarea {
+            padding: 8px 10px;
+            margin: 3px 5px 3px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        textarea {
+            width: 100%;
+            height: 60px;
+            resize: vertical;
+            font-family: inherit;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #45a049; }
+        button.danger { background: #f44336; }
+        button.danger:hover { background: #d32f2f; }
+        button.small {
+            padding: 2px 6px;
+            font-size: 0.7rem;
+            margin-left: 5px;
+            background: #2196F3;
+        }
+        .result {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.95em;
+        }
+        .example {
+            color: #555;
+            font-size: 0.9em;
+            margin-top: 5px;
+            background: #f5f5f5;
+            padding: 4px 8px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .nav {
+            background: #333;
+            padding: 10px;
+            color: #fff;
+            text-align: center;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 5px;
+        }
+        .nav a {
+            color: #fff;
+            padding: 5px 12px;
+            text-decoration: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .nav a:hover { background: #555; }
+        .nav a.active { background: #4CAF50; }
+        .page {
+            display: none;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .page.active { display: block; }
+        .status-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px;
+        }
+        .status-item {
+            background: #f5f5f5;
+            padding: 5px 10px;
+            border-radius: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .status-item span { flex: 1; }
+        .msg-area {
+            background: #e8f4f8;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.9em;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border: 1px solid #bcd8e6;
+        }
+        .device-list, .route-table {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .route-table { max-height: 300px; }
+        .ip-bar {
+            background: #222;
+            color: #fff;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .ip-bar input {
+            flex: 1;
+            min-width: 150px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #666;
+            background: #333;
+            color: #fff;
+        }
+        .ip-bar button {
+            background: #4CAF50;
+            border: none;
+            padding: 4px 16px;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+        }
+        .ip-bar .status {
+            color: #aaa;
+            font-size: 0.9em;
+        }
+        .ip-bar .status.online { color: #4CAF50; }
+        @media (max-width: 600px) {
+            .status-grid { grid-template-columns: 1fr; }
+            .nav a { padding: 4px 8px; font-size: 0.85rem; }
+            input, button, textarea { width: 100%; margin: 5px 0; }
+            .section { padding: 10px; }
+            .ip-bar { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== IP 设置栏 ===== -->
+<div class="ip-bar">
+    <span>设备 IP：</span>
+    <input type="text" id="device_ip" value="192.168.4.1" placeholder="例如 192.168.4.1">
+    <button onclick="connectDevice()">连接</button>
+    <span id="conn_status" class="status">未连接</span>
+</div>
+
+<!-- ===== 导航菜单 ===== -->
+<div class="nav" id="navMenu">
+    <a class="active" data-page="page-home">主页</a>
+    <a data-page="page-broadcast">广播</a>
+    <a data-page="page-unicast">单播</a>
+    <a data-page="page-neighbor">邻居表</a>
+    <a data-page="page-route">路由表</a>
+    <a data-page="page-ap">AP设置</a>
+    <a data-page="page-sta">STA设置</a>
+    <a data-page="page-udp">UDP设置</a>
+    <a data-page="page-system">系统设置</a>
+</div>
+
+<!-- ===== 页面容器 ===== -->
+
+<!-- 主页 -->
+<div id="page-home" class="page active">
+    <h2>ESP32-C3 控制台 - 状态总览</h2>
+    <button onclick="fetchAllStatus()" style="margin-bottom:20px;">刷新所有状态</button>
+
+    <div class="section">
+        <h3>系统状态</h3>
+        <div id="statusDisplay" class="status-grid">
+            <div class="status-item">AP SSID: <span id="ap_ssid">-</span><button class="small" onclick="fetchApStatus()">↻</button></div>
+            <div class="status-item">AP IP: <span id="ap_ip">-</span><button class="small" onclick="fetchApStatus()">↻</button></div>
+            <div class="status-item">STA SSID: <span id="sta_ssid">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+            <div class="status-item">STA IP: <span id="sta_ip">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+            <div class="status-item">STA 连接状态: <span id="sta_connected">-</span><button class="small" onclick="fetchStaStatus()">↻</button></div>
+            <div class="status-item">STA 超时: <span id="sta_timeout">-</span>s<button class="small" onclick="fetchStaTimeout()">↻</button></div>
+            <div class="status-item">UDP 接收端口: <span id="udp_recv_port">-</span><button class="small" onclick="fetchUdpRecvPort()">↻</button></div>
+            <div class="status-item">UDP 目标端口: <span id="udp_broadcast_port">-</span><button class="small" onclick="fetchUdpBroadcastPort()">↻</button></div>
+            <div class="status-item">UDP 轮询间隔: <span id="poll_interval">-</span>ms<button class="small" onclick="fetchPollInterval()">↻</button></div>
+            <div class="status-item">LED 引脚: <span id="led_pin">-</span><button class="small" onclick="fetchLedPin()">↻</button></div>
+            <div class="status-item">LED 状态: <span id="led_status">-</span><button class="small" onclick="fetchLedStatus()">↻</button></div>
+            <div class="status-item">内存占用: <span id="memory_usage">-</span><button class="small" onclick="fetchMemory()">↻</button></div>
+            <div class="status-item">自身 MAC: <span id="self_mac">-</span><button class="small" onclick="fetchSelfMac()">↻</button></div>
+        </div>
+        <div class="example">状态 API 示例：/api/get_ap_status, /api/get_sta_status, /api/get_sta_timeout, ...</div>
+    </div>
+
+    <div class="section">
+        <h3>连接设备（仅显示）</h3>
+        <button onclick="showConnectedMacs()">扫描并显示</button>
+        <pre id="connectedMacs" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px; max-height:150px; overflow-y:auto;"></pre>
+        <div class="example">API: /api/get_macs</div>
+    </div>
+
+    <div class="section">
+        <h3>已记录昵称</h3>
+        <button onclick="showNicknames()">显示所有昵称</button>
+        <pre id="nicknameList" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px; max-height:150px; overflow-y:auto;"></pre>
+        <div class="example">API: /api/get_nicknames</div>
+    </div>
+
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- 广播 -->
+<div id="page-broadcast" class="page">
+    <h2>ESP32-C3 控制台 - UDP广播</h2>
+    <div class="section">
+        <h3>AP 广播</h3>
+        <label>内容:</label>
+        <textarea id="bc_content">Hello</textarea>
+        <button onclick="broadcast()">发送</button>
+        <div class="example">示例: /api/udp_broadcast (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>STA 广播</h3>
+        <label>内容:</label>
+        <textarea id="sta_bc_content">HelloSTA</textarea>
+        <button onclick="staBroadcast()">发送</button>
+        <div class="example">示例: /api/udp_broadcast_sta (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>AP+STA 同时广播</h3>
+        <label>内容:</label>
+        <textarea id="both_bc_content">HelloBoth</textarea>
+        <button onclick="bothBroadcast()">同时发送</button>
+        <div class="example">示例: /api/udp_broadcast_apsta (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>UDP 消息列表</h3>
+        <div id="udpMsgList_broadcast" class="msg-area">等待消息...</div>
+        <button onclick="clearUdpMsg('broadcast')" style="background:#f44336;">清空</button>
+        <button onclick="refreshUdpMessages('broadcast')" style="background:#2196F3;">刷新</button>
+        <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_broadcast" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- 单播 -->
+<div id="page-unicast" class="page">
+    <h2>ESP32-C3 控制台 - UDP单播</h2>
+    <div class="section">
+        <h3>AP 单播（IP尾号）</h3>
+        <label>IP尾号: <input type="number" id="uc_ip_ap" value="3" min="1" max="254"></label>
+        <label>内容:</label>
+        <textarea id="uc_content_ap">Hello</textarea>
+        <button onclick="unicastAp()">发送</button>
+        <div class="example">示例: /api/udp_send_ap (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>STA 单播（IP尾号）</h3>
+        <label>IP尾号: <input type="number" id="uc_ip_sta" value="3" min="1" max="254"></label>
+        <label>内容:</label>
+        <textarea id="uc_content_sta">Hello</textarea>
+        <button onclick="unicastSta()">发送</button>
+        <div class="example">示例: /api/udp_send_sta (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>任意 IP 单播（完整IP）</h3>
+        <label>目标IP: <input type="text" id="target_ip" placeholder="192.168.8.100"></label>
+        <label>内容:</label>
+        <textarea id="send_ip_content">Hello</textarea>
+        <button onclick="sendToIp()">发送</button>
+        <div class="example">示例: /api/udp_send_ip (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>昵称单播（需先设置昵称）</h3>
+        <label>目标昵称: <input type="text" id="send_nick" placeholder="mydevice"></label>
+        <label>内容:</label>
+        <textarea id="send_msg">Hello</textarea>
+        <button onclick="sendByNick()">发送</button>
+        <div class="example">示例: /api/send_to_nick (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>发送路由消息</h3>
+        <label>目标MAC: <input type="text" id="route_dst_mac" placeholder="8C:FD:49:55:02:F4"></label>
+        <label>命令: <input type="text" id="route_cmd_msg" placeholder="Hello"></label>
+        <button onclick="sendRouteMsg()">发送</button>
+        <div class="example">API: /api/send_route_message (POST JSON)</div>
+    </div>
+    <div class="section">
+        <h3>UDP 消息列表</h3>
+        <div id="udpMsgList_unicast" class="msg-area">等待消息...</div>
+        <button onclick="clearUdpMsg('unicast')" style="background:#f44336;">清空</button>
+        <button onclick="refreshUdpMessages('unicast')" style="background:#2196F3;">刷新</button>
+        <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_unicast" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- 邻居表 -->
+<div id="page-neighbor" class="page">
+    <h2>ESP32-C3 控制台 - 邻居表管理</h2>
+<!--    <div class="section">-->
+<!--        <h3>邻居注册请求</h3>-->
+<!--        <button onclick="authRequestBoth()">AP+STA 同时注册</button>-->
+<!--        <div class="example">示例: /api/auth_request_apsta</div>-->
+<!--    </div>-->
+    <div class="section">
+        <h3>邻居广播间隔设置</h3>
+        <label>间隔(秒): <input type="number" id="neighbor_interval" min="5" value="120"></label>
+        <button onclick="setNeighborInterval()">设置</button>
+        <br><br>
+        <button onclick="getNeighborInterval()">获取当前间隔</button>
+        <span id="neighborIntervalDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/set_neighbor_interval (POST), /api/get_neighbor_interval (GET)</div>
+    </div>
+    <div class="section">
+        <h3>邻居表管理</h3>
+        <div id="authDeviceList" class="device-list">等待加载...</div>
+        <div style="margin-bottom: 10px;">
+            <button onclick="refreshAuthList()">刷新设备列表</button>
+            <button onclick="clearNeighbors()" style="background:#f44336;">清空邻居表</button>
+            <br><br>
+            <label>MAC: <input type="text" id="del_mac" placeholder="8C:FD:49:55:02:F4"></label>
+            <button onclick="deleteDevice()">删除该设备</button>
+        </div>
+        <div class="example">API 示例：/api/list_auth (查看), /api/clear_neighbors (清空), /api/delete_device?mac=8C:FD:49:55:02:F4 (删除)</div>
+    </div>
+    <div class="section">
+        <h3>昵称管理</h3>
+        <label>MAC: <input type="text" id="nick_mac" placeholder="8C:FD:49:55:02:F4"></label>
+        <label>昵称: <input type="text" id="nick_name" placeholder="mydevice"></label>
+        <button onclick="setNick()">设置昵称</button>
+        <div class="example">API: /api/set_nickname?mac=8C:FD:49:55:02:F4&nickname=mydev</div>
+    </div>
+    <div class="section">
+        <h3>UDP 消息列表</h3>
+        <div id="udpMsgList_neighbor" class="msg-area">等待消息...</div>
+        <button onclick="clearUdpMsg('neighbor')" style="background:#f44336;">清空</button>
+        <button onclick="refreshUdpMessages('neighbor')" style="background:#2196F3;">刷新</button>
+        <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_neighbor" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- 路由表 -->
+<div id="page-route" class="page">
+    <h2>ESP32-C3 控制台 - 路由表管理</h2>
+<!--    <div class="section">-->
+<!--        <h3>路由表操作</h3>-->
+<!--        <button onclick="routeSync()">路由表同步（通告+学习）</button>-->
+<!--        <div class="example">示例: /api/route_sta_sync_request</div>-->
+<!--        <br><br>-->
+<!--        <button onclick="routeApRegister()">AP注册请求</button>-->
+<!--        <div class="example">示例: /api/route_ap_register_request</div>-->
+<!--    </div>-->
+    <div class="section">
+        <h3>路由通告间隔设置</h3>
+        <label>间隔(秒): <input type="number" id="route_interval" min="5" value="120"></label>
+        <button onclick="setRouteInterval()">设置</button>
+        <br><br>
+        <button onclick="getRouteInterval()">获取当前间隔</button>
+        <span id="routeIntervalDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/set_route_interval (POST), /api/get_route_interval (GET)</div>
+    </div>
+    <div class="section">
+        <h3>路由表管理</h3>
+        <div id="routeTableDisplay" class="route-table">等待加载...</div>
+        <button onclick="refreshRouteTable()">刷新路由表</button>
+        <button onclick="clearRouteTable()" style="background:#f44336;">清空路由表</button>
+        <div style="margin-top: 10px;">
+            <label>MAC: <input type="text" id="route_del_mac" placeholder="8C:FD:49:55:02:F4"></label>
+            <button onclick="deleteRoute()">删除该路由</button>
+        </div>
+        <div class="example">API 示例：/api/route_table (查看), /api/route_clear (清空), /api/route_delete?mac=8C:FD:49:55:02:F4 (删除)</div>
+    </div>
+    <div class="section">
+        <h3>昵称设置（路由表关联）</h3>
+        <label>MAC: <input type="text" id="route_nick_mac" placeholder="8C:FD:49:55:02:F4"></label>
+        <label>昵称: <input type="text" id="route_nick_name" placeholder="mydevice"></label>
+        <button onclick="setRouteNick()">设置昵称</button>
+        <div class="example">API: /api/set_nickname?mac=8C:FD:49:55:02:F4&nickname=mydev</div>
+    </div>
+    <div class="section">
+        <h3>UDP 消息列表</h3>
+        <div id="udpMsgList_route" class="msg-area">等待消息...</div>
+        <button onclick="clearUdpMsg('route')" style="background:#f44336;">清空</button>
+        <button onclick="refreshUdpMessages('route')" style="background:#2196F3;">刷新</button>
+        <div class="example">API: /api/udp_messages (GET), /api/clear_udp_messages (POST)</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_route" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- AP设置 -->
+<div id="page-ap" class="page">
+    <h2>ESP32-C3 控制台 - AP设置</h2>
+    <div class="section">
+        <h3>查看当前 AP 配置</h3>
+        <button onclick="getApConfig()">获取 AP SSID/密码</button>
+        <pre id="apConfigDisplay" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px;"></pre>
+        <div class="example">API: /api/get_ap_ssid_password</div>
+    </div>
+    <div class="section">
+        <h3>修改 AP SSID 和密码</h3>
+        <label>SSID: <input type="text" id="ap_ssid_new" placeholder="新SSID"></label>
+        <label>密码: <input type="text" id="ap_password_new" placeholder="新密码"></label>
+        <button onclick="setApSsidPassword()">设置（需重启生效）</button>
+        <div class="example">示例: /api/set_ap_ssid_password?ssid=MyAP&password=12345678</div>
+    </div>
+    <div class="section">
+        <h3>AP 网段设置（IP倒数第二段）</h3>
+        <label>新网段（如 192.168.<b>5</b>.1）: <input type="number" id="ap_net_segment" min="0" max="255" value="4"></label>
+        <button onclick="setApNetSegment()">设置网段（需重启）</button>
+        <br><br>
+        <button onclick="loadApNetSegment()">获取当前网段</button>
+        <div class="example">示例: /api/set_ap_net_segment?segment=5</div>
+    </div>
+    <div class="section">
+        <h3>重置 AP 配置为默认</h3>
+        <button onclick="resetApConfig()" style="background:#f44336;">重置</button>
+        <div class="example">API: /api/reset_ap_config</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_ap" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- STA设置 -->
+<div id="page-sta" class="page">
+    <h2>ESP32-C3 控制台 - STA设置</h2>
+    <div class="section">
+        <h3>查看当前 STA 配置</h3>
+        <button onclick="getStaConfig()">获取 STA SSID/密码</button>
+        <pre id="staConfigDisplay" style="background:#f0f0f0; padding:10px; border-radius:4px; margin-top:10px;"></pre>
+        <div class="example">API: /api/get_sta_ssid_password</div>
+    </div>
+    <div class="section">
+        <h3>修改 STA SSID 和密码</h3>
+        <label>SSID: <input type="text" id="sta_ssid_new" placeholder="新SSID"></label>
+        <label>密码: <input type="text" id="sta_password_new" placeholder="新密码"></label>
+        <button onclick="setStaSsidPassword()">设置（需重启）</button>
+        <div class="example">示例: /api/set_sta_ssid_password?ssid=MyWiFi&password=12345678</div>
+    </div>
+    <div class="section">
+        <h3>STA 连接超时</h3>
+        <label>超时(秒): <input type="number" id="sta_timeout_new" min="5" value="60"></label>
+        <button onclick="setStaTimeout()">设置</button>
+        <br><br>
+        <button onclick="getStaTimeout()">获取当前超时</button>
+        <div class="example">示例: /api/set_sta_timeout?value=30</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_sta" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- UDP设置 -->
+<div id="page-udp" class="page">
+    <h2>ESP32-C3 控制台 - UDP设置</h2>
+    <div class="section">
+        <h3>UDP 接收端口</h3>
+        <label>端口号: <input type="number" id="udp_recv_port_new" min="1" max="65535" value="8888"></label>
+        <button onclick="setUdpRecvPort()">设置（需重启）</button>
+        <br><br>
+        <button onclick="getUdpRecvPort()">获取当前端口</button>
+        <div class="example">示例: /api/set_udp_recv_port?port=8889</div>
+    </div>
+    <div class="section">
+        <h3>UDP 广播/单播目标端口</h3>
+        <label>端口号: <input type="number" id="udp_broadcast_port_new" min="1" max="65535" value="8888"></label>
+        <button onclick="setUdpBroadcastPort()">设置（需重启）</button>
+        <br><br>
+        <button onclick="getUdpBroadcastPort()">获取当前端口</button>
+        <div class="example">示例: /api/set_udp_broadcast_port?port=8888</div>
+    </div>
+    <div class="section">
+        <h3>UDP 消息轮询间隔</h3>
+        <label>间隔(毫秒): <input type="number" id="poll_interval_new" min="500" value="5000"></label>
+        <button onclick="setPollInterval()">设置（立即生效）</button>
+        <br><br>
+        <button onclick="getPollInterval()">获取当前间隔</button>
+        <div class="example">示例: /api/set_udp_poll_interval?interval=5000</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_udp" class="result">等待操作...</div>
+    </div>
+</div>
+
+<!-- 系统设置 -->
+<div id="page-system" class="page">
+    <h2>ESP32-C3 控制台 - 系统设置</h2>
+    <div class="section">
+        <h3>本机昵称设置</h3>
+        <label>新昵称: <input type="text" id="self_nickname_input" placeholder="请输入新昵称"></label>
+        <button onclick="setSelfNickname()">设置（立即生效）</button>
+        <br><br>
+        <button onclick="getSelfNickname()">获取当前昵称</button>
+        <span id="selfNicknameDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/set_self_nickname (POST)</div>
+    </div>
+    <div class="section">
+        <h3>LED 引脚配置</h3>
+        <label>引脚号: <input type="number" id="led_pin_new" min="0" max="21"></label>
+        <button onclick="setLedPin()">设置（需重启）</button>
+        <br><br>
+        <button onclick="getLedPin()">获取当前引脚</button>
+        <span id="ledPinDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/get_led_pin</div>
+    </div>
+    <div class="section">
+        <h3>重置引脚配置</h3>
+        <label>引脚号: <input type="number" id="reset_pin_new" min="0" max="21" value="10"></label>
+        <button onclick="setResetPin()">设置（需重启）</button>
+        <br><br>
+        <label>保持时间(秒): <input type="number" id="reset_hold_time_new" min="2" max="60" value="8"></label>
+        <button onclick="setResetHoldTime()">设置（需重启）</button>
+        <br><br>
+        <button onclick="getResetStatus()">获取当前配置</button>
+        <span id="resetStatusDisplay" style="margin-left: 10px;"></span>
+        <div class="example">API: /api/set_reset_pin, /api/set_reset_hold_time, /api/get_reset_status</div>
+    </div>
+    <div class="section">
+        <h3>重启设备</h3>
+        <button onclick="rebootDevice()" style="background:#f44336;">立即重启</button>
+        <div class="example">API: /api/reboot</div>
+    </div>
+    <div class="section">
+        <h3>操作结果</h3>
+        <div id="result_system" class="result">等待操作...</div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// 全局配置
+// ============================================================
+let baseUrl = '';
+
+function getBaseUrl() {
+    return baseUrl;
+}
+
+function setBaseUrl(url) {
+    // 去除前后空格，并确保以 http:// 开头
+    url = url.trim();
+    if (!/^https?:\/\//i.test(url)) {
+        url = 'http://' + url;
+    }
+    baseUrl = url.replace(/\/+$/, '');
+    localStorage.setItem('esp32_ip', baseUrl);
+    document.getElementById('conn_status').textContent = '已连接 ' + baseUrl;
+    document.getElementById('conn_status').className = 'status online';
+}
+
+function loadSavedIp() {
+    const saved = localStorage.getItem('esp32_ip');
+    if (saved) {
+        document.getElementById('device_ip').value = saved.replace(/^https?:\/\//, '');
+        setBaseUrl(saved);
+    } else {
+        // 默认使用当前输入框的值
+        connectDevice();
+    }
+}
+
+function connectDevice() {
+    const ip = document.getElementById('device_ip').value;
+    setBaseUrl(ip);
+}
+
+// 页面加载时恢复 IP（不自动发起任何 API 请求）
+window.addEventListener('DOMContentLoaded', function() {
+    loadSavedIp();
+});
+
+// ============================================================
+// 导航切换
+// ============================================================
+document.querySelectorAll('#navMenu a').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        // 移除所有 active
+        document.querySelectorAll('#navMenu a').forEach(a => a.classList.remove('active'));
+        this.classList.add('active');
+        // 隐藏所有页面
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        // 显示目标页面
+        const target = document.getElementById(this.dataset.page);
+        if (target) target.classList.add('active');
+    });
+});
+
+// ============================================================
+// 通用 API 调用辅助
+// ============================================================
+function apiFetch(endpoint, options) {
+    const url = getBaseUrl() + endpoint;
+    return fetch(url, options);
+}
+
+function showResult(containerId, text) {
+    document.getElementById(containerId).textContent = text;
+}
+
+// ============================================================
+// 主页功能
+// ============================================================
+function fetchApStatus() {
+    apiFetch('/api/get_ap_status')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('ap_ssid').textContent = data.ssid || '-';
+            document.getElementById('ap_ip').textContent = data.ip || '-';
+        })
+        .catch(() => {});
+}
+function fetchStaStatus() {
+    apiFetch('/api/get_sta_status')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('sta_ssid').textContent = data.ssid || '-';
+            document.getElementById('sta_ip').textContent = data.ip || '-';
+            document.getElementById('sta_connected').textContent = data.connected ? '已连接' : '未连接';
+        })
+        .catch(() => {});
+}
+function fetchStaTimeout() {
+    apiFetch('/api/get_sta_timeout')
+        .then(res => res.json())
+        .then(data => { document.getElementById('sta_timeout').textContent = data.value || '-'; })
+        .catch(() => {});
+}
+function fetchUdpRecvPort() {
+    apiFetch('/api/get_udp_recv_port')
+        .then(res => res.json())
+        .then(data => { document.getElementById('udp_recv_port').textContent = data.value || '-'; })
+        .catch(() => {});
+}
+function fetchUdpBroadcastPort() {
+    apiFetch('/api/get_udp_broadcast_port')
+        .then(res => res.json())
+        .then(data => { document.getElementById('udp_broadcast_port').textContent = data.value || '-'; })
+        .catch(() => {});
+}
+function fetchPollInterval() {
+    apiFetch('/api/get_udp_poll_interval')
+        .then(res => res.json())
+        .then(data => { document.getElementById('poll_interval').textContent = data.interval || '-'; })
+        .catch(() => {});
+}
+function fetchLedPin() {
+    apiFetch('/api/get_led_pin')
+        .then(res => res.json())
+        .then(data => { document.getElementById('led_pin').textContent = data.pin || '-'; })
+        .catch(() => {});
+}
+function fetchLedStatus() {
+    apiFetch('/api/get_led_status')
+        .then(res => res.json())
+        .then(data => { document.getElementById('led_status').textContent = data.status || '-'; })
+        .catch(() => {});
+}
+function fetchMemory() {
+    apiFetch('/api/memory')
+        .then(res => res.json())
+        .then(data => {
+            var used = data.used || 0;
+            var total = data.total || 1;
+            var percent = (used/total*100).toFixed(1);
+            document.getElementById('memory_usage').textContent = used + '/' + total + ' (' + percent + '%)';
+        })
+        .catch(() => {});
+}
+function fetchSelfMac() {
+    apiFetch('/api/get_self_mac')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('self_mac').textContent = data.mac || '-';
+        })
+        .catch(() => {});
+}
+function fetchAllStatus() {
+    fetchApStatus();
+    fetchStaStatus();
+    fetchStaTimeout();
+    fetchUdpRecvPort();
+    fetchUdpBroadcastPort();
+    fetchPollInterval();
+    fetchLedPin();
+    fetchLedStatus();
+    fetchMemory();
+    fetchSelfMac();
+}
+
+function showConnectedMacs() {
+    apiFetch('/api/get_macs')
+        .then(res => res.text())
+        .then(data => { document.getElementById('connectedMacs').textContent = data; })
+        .catch(err => { document.getElementById('connectedMacs').textContent = '获取失败: ' + err; });
+}
+function showNicknames() {
+    apiFetch('/api/get_nicknames')
+        .then(res => res.json())
+        .then(data => {
+            var lines = Object.entries(data).map(([mac, nick]) => mac + ' -> ' + nick);
+            document.getElementById('nicknameList').textContent = lines.join('\n') || '暂无昵称';
+        })
+        .catch(err => { document.getElementById('nicknameList').textContent = '获取失败: ' + err; });
+}
+
+// ============================================================
+// 广播页面
+// ============================================================
+function broadcast() {
+    var content = document.getElementById('bc_content').value.trim();
+    if (!content) { showResult('result_broadcast', '请输入广播内容'); return; }
+    apiFetch('/api/udp_broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_broadcast', 'AP广播: ' + data))
+    .catch(err => showResult('result_broadcast', '请求失败: ' + err.toString()));
+}
+function staBroadcast() {
+    var content = document.getElementById('sta_bc_content').value.trim();
+    if (!content) { showResult('result_broadcast', '请输入广播内容'); return; }
+    apiFetch('/api/udp_broadcast_sta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_broadcast', 'STA广播: ' + data))
+    .catch(err => showResult('result_broadcast', '请求失败: ' + err.toString()));
+}
+function bothBroadcast() {
+    var content = document.getElementById('both_bc_content').value.trim();
+    if (!content) { showResult('result_broadcast', '请输入广播内容'); return; }
+    apiFetch('/api/udp_broadcast_apsta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_broadcast', 'AP+STA广播: ' + data))
+    .catch(err => showResult('result_broadcast', '请求失败: ' + err.toString()));
+}
+
+// ============================================================
+// UDP 消息列表（通用）
+// ============================================================
+function fetchUdpMessages(containerId) {
+    apiFetch('/api/udp_messages')
+        .then(res => res.json())
+        .then(data => {
+            var container = document.getElementById(containerId);
+            if (data.length === 0) {
+                container.textContent = '暂无消息';
+                return;
+            }
+            var lines = data.map(item => {
+                var timeStr = new Date(item.time * 1000).toLocaleTimeString();
+                return timeStr + ' ' + item.addr + ': ' + item.msg;
+            });
+            container.textContent = lines.join('\n\n');
+        })
+        .catch(err => console.error('获取UDP消息失败:', err));
+}
+function refreshUdpMessages(page) {
+    var map = {
+        'broadcast': 'udpMsgList_broadcast',
+        'unicast': 'udpMsgList_unicast',
+        'neighbor': 'udpMsgList_neighbor',
+        'route': 'udpMsgList_route'
+    };
+    var containerId = map[page] || 'udpMsgList_broadcast';
+    showResult('result_' + page, '正在刷新...');
+    fetchUdpMessages(containerId);
+    showResult('result_' + page, '刷新完成');
+}
+function clearUdpMsg(page) {
+    if (!confirm('确定清空所有UDP消息记录吗？')) return;
+    apiFetch('/api/clear_udp_messages', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_' + page, '清空消息: ' + data);
+            refreshUdpMessages(page);
+        })
+        .catch(err => showResult('result_' + page, '请求失败: ' + err.toString()));
+}
+
+// ============================================================
+// 单播页面
+// ============================================================
+function unicastAp() {
+    var ip_tail = document.getElementById('uc_ip_ap').value.trim();
+    var content = document.getElementById('uc_content_ap').value.trim();
+    if (!ip_tail || !content) { showResult('result_unicast', '请输入IP尾号和内容'); return; }
+    apiFetch('/api/udp_send_ap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip_tail: ip_tail, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', 'AP单播: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function unicastSta() {
+    var ip_tail = document.getElementById('uc_ip_sta').value.trim();
+    var content = document.getElementById('uc_content_sta').value.trim();
+    if (!ip_tail || !content) { showResult('result_unicast', '请输入IP尾号和内容'); return; }
+    apiFetch('/api/udp_send_sta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip_tail: ip_tail, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', 'STA单播: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function sendToIp() {
+    var ip = document.getElementById('target_ip').value.trim();
+    var content = document.getElementById('send_ip_content').value.trim();
+    if (!ip || !content) { showResult('result_unicast', '请输入目标IP和内容'); return; }
+    apiFetch('/api/udp_send_ip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip: ip, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', '发送到IP: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function sendByNick() {
+    var nickname = document.getElementById('send_nick').value.trim();
+    var content = document.getElementById('send_msg').value.trim();
+    if (!nickname || !content) { showResult('result_unicast', '请输入昵称和消息'); return; }
+    apiFetch('/api/send_to_nick', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nickname, content: content })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', '按昵称发送: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+function sendRouteMsg() {
+    var mac = document.getElementById('route_dst_mac').value.trim();
+    var msg = document.getElementById('route_cmd_msg').value.trim();
+    if (!mac || !msg) { showResult('result_unicast', '请输入MAC和命令'); return; }
+    apiFetch('/api/send_route_message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dst_mac: mac, cmd_msg: msg })
+    })
+    .then(res => res.text())
+    .then(data => showResult('result_unicast', '发送路由消息: ' + data))
+    .catch(err => showResult('result_unicast', '请求失败: ' + err.toString()));
+}
+
+// ============================================================
+// 邻居表页面
+// ============================================================
+// function authRequestBoth() {
+//     apiFetch('/api/auth_request_apsta', { method: 'POST' })
+//         .then(res => res.text())
+//         .then(data => showResult('result_neighbor', 'AP+STA注册: ' + data))
+//         .catch(err => showResult('result_neighbor', '请求失败: ' + err.toString()));
+// }
+function setNeighborInterval() {
+    var interval = document.getElementById('neighbor_interval').value.trim();
+    if (!interval) { showResult('result_neighbor', '请输入间隔秒数'); return; }
+    apiFetch('/api/set_neighbor_interval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval: parseInt(interval) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_neighbor', '设置间隔: ' + data);
+        getNeighborInterval();
+    })
+    .catch(err => showResult('result_neighbor', '请求失败: ' + err.toString()));
+}
+function getNeighborInterval() {
+    apiFetch('/api/get_neighbor_interval')
+        .then(res => res.json())
+        .then(data => {
+            var val = data.interval || '未获取';
+            document.getElementById('neighbor_interval').value = val;
+            document.getElementById('neighborIntervalDisplay').textContent = '当前间隔: ' + val + ' 秒';
+        })
+        .catch(err => {
+            document.getElementById('neighborIntervalDisplay').textContent = '获取失败';
+        });
+}
+function refreshAuthList() {
+    apiFetch('/api/list_auth')
+        .then(res => res.text())
+        .then(data => {
+            document.getElementById('authDeviceList').textContent = data || '暂无已注册设备';
+        })
+        .catch(err => {
+            document.getElementById('authDeviceList').textContent = '加载失败: ' + err;
+        });
+}
+function clearNeighbors() {
+    if (!confirm('确定清空所有邻居表记录吗？')) return;
+    apiFetch('/api/clear_neighbors', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_neighbor', '清空邻居表: ' + data);
+            refreshAuthList();
+        })
+        .catch(err => showResult('result_neighbor', '请求失败: ' + err.toString()));
+}
+function deleteDevice() {
+    var mac = document.getElementById('del_mac').value.trim();
+    if (!mac) { showResult('result_neighbor', '请输入MAC地址'); return; }
+    if (!confirm('确定要删除设备 ' + mac + ' 吗？')) return;
+    apiFetch('/api/delete_device?mac=' + encodeURIComponent(mac), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_neighbor', '删除设备: ' + data);
+            refreshAuthList();
+        })
+        .catch(err => showResult('result_neighbor', '请求失败: ' + err.toString()));
+}
+function setNick() {
+    var mac = document.getElementById('nick_mac').value.trim();
+    var nickname = document.getElementById('nick_name').value.trim();
+    if (!mac || !nickname) { showResult('result_neighbor', '请输入MAC和昵称'); return; }
+    apiFetch('/api/set_nickname?mac=' + encodeURIComponent(mac) + '&nickname=' + encodeURIComponent(nickname), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_neighbor', '设置昵称: ' + data))
+        .catch(err => showResult('result_neighbor', '请求失败: ' + err.toString()));
+}
+
+// ============================================================
+// 路由表页面
+// ============================================================
+// function routeSync() {
+//     apiFetch('/api/route_sta_sync_request', { method: 'POST' })
+//         .then(res => res.text())
+//         .then(data => {
+//             showResult('result_route', '同步请求: ' + data);
+//             setTimeout(fetchRouteTable, 3000);
+//         })
+//         .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+// }
+function routeApRegister() {
+    apiFetch('/api/route_ap_register_request', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_route', 'AP注册请求: ' + data);
+            setTimeout(fetchRouteTable, 2000);
+        })
+        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+function setRouteInterval() {
+    var interval = document.getElementById('route_interval').value.trim();
+    if (!interval) { showResult('result_route', '请输入间隔秒数'); return; }
+    apiFetch('/api/set_route_interval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval: parseInt(interval) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_route', '设置间隔: ' + data);
+        getRouteInterval();
+    })
+    .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+function getRouteInterval() {
+    apiFetch('/api/get_route_interval')
+        .then(res => res.json())
+        .then(data => {
+            var val = data.interval || '未获取';
+            document.getElementById('route_interval').value = val;
+            document.getElementById('routeIntervalDisplay').textContent = '当前间隔: ' + val + ' 秒';
+        })
+        .catch(err => {
+            document.getElementById('routeIntervalDisplay').textContent = '获取失败';
+        });
+}
+function fetchRouteTable() {
+    apiFetch('/api/route_table_with_nick')
+        .then(res => res.json())
+        .then(data => {
+            var display = document.getElementById('routeTableDisplay');
+            var keys = Object.keys(data);
+            if (keys.length === 0) {
+                display.textContent = '路由表为空';
+                return;
+            }
+            var lines = keys.map(mac => {
+                var entry = data[mac];
+                var nick = entry.nickname || '未设置';
+                var dst = entry.distance || '-';
+                return mac + ' -> ' + entry.ip + ' (TTL: ' + entry.ttl + ') 昵称: ' + nick + '    步长: ' + dst;
+            });
+            display.textContent = lines.join('\n');
+        })
+        .catch(err => {
+            document.getElementById('routeTableDisplay').textContent = '加载失败: ' + err;
+        });
+}
+function refreshRouteTable() {
+    showResult('result_route', '刷新路由表...');
+    fetchRouteTable();
+}
+function clearRouteTable() {
+    if (!confirm('确定清空路由表吗？')) return;
+    apiFetch('/api/route_clear', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_route', '清空路由表: ' + data);
+            fetchRouteTable();
+        })
+        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+function deleteRoute() {
+    var mac = document.getElementById('route_del_mac').value.trim();
+    if (!mac) { showResult('result_route', '请输入MAC地址'); return; }
+    if (!confirm('确定要删除路由 ' + mac + ' 吗？')) return;
+    apiFetch('/api/route_delete?mac=' + encodeURIComponent(mac), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_route', '删除路由: ' + data);
+            fetchRouteTable();
+        })
+        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+function setRouteNick() {
+    var mac = document.getElementById('route_nick_mac').value.trim();
+    var nickname = document.getElementById('route_nick_name').value.trim();
+    if (!mac || !nickname) { showResult('result_route', '请输入MAC和昵称'); return; }
+    apiFetch('/api/set_nickname?mac=' + encodeURIComponent(mac) + '&nickname=' + encodeURIComponent(nickname), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_route', '设置昵称: ' + data))
+        .catch(err => showResult('result_route', '请求失败: ' + err.toString()));
+}
+
+// ============================================================
+// AP 设置
+// ============================================================
+function getApConfig() {
+    apiFetch('/api/get_ap_ssid_password')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('apConfigDisplay').textContent = 'SSID: ' + (data.ssid || '-') + '\n密码: ' + (data.password || '-');
+        })
+        .catch(err => {
+            document.getElementById('apConfigDisplay').textContent = '获取失败: ' + err;
+        });
+}
+function setApSsidPassword() {
+    var ssid = document.getElementById('ap_ssid_new').value.trim();
+    var password = document.getElementById('ap_password_new').value.trim();
+    if (!ssid) { showResult('result_ap', '请输入SSID'); return; }
+    apiFetch('/api/set_ap_ssid_password?ssid=' + encodeURIComponent(ssid) + '&password=' + encodeURIComponent(password), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_ap', '设置AP配置: ' + data))
+        .catch(err => showResult('result_ap', '请求失败: ' + err.toString()));
+}
+function setApNetSegment() {
+    var seg = document.getElementById('ap_net_segment').value.trim();
+    if (!seg) { showResult('result_ap', '请输入网段号'); return; }
+    apiFetch('/api/set_ap_net_segment?segment=' + encodeURIComponent(seg), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_ap', '设置AP网段: ' + data))
+        .catch(err => showResult('result_ap', '请求失败: ' + err.toString()));
+}
+function resetApConfig() {
+    if (!confirm('确定重置AP配置为默认值吗？')) return;
+    apiFetch('/api/reset_ap_config', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_ap', '重置AP配置: ' + data))
+        .catch(err => showResult('result_ap', '请求失败: ' + err.toString()));
+}
+function loadApNetSegment() {
+    apiFetch('/api/get_ap_status')
+        .then(res => res.json())
+        .then(data => {
+            if (data.ip) {
+                var parts = data.ip.split('.');
+                if (parts.length === 4) {
+                    var segment = parseInt(parts[2]);
+                    if (!isNaN(segment) && segment >= 0 && segment <= 255) {
+                        document.getElementById('ap_net_segment').value = segment;
+                    }
+                }
+            }
+        })
+        .catch(err => console.error('获取AP状态失败:', err));
+}
+
+// ============================================================
+// STA 设置
+// ============================================================
+function getStaConfig() {
+    apiFetch('/api/get_sta_ssid_password')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('staConfigDisplay').textContent = 'SSID: ' + (data.ssid || '-') + '\n密码: ' + (data.password || '-');
+        })
+        .catch(err => {
+            document.getElementById('staConfigDisplay').textContent = '获取失败: ' + err;
+        });
+}
+function setStaSsidPassword() {
+    var ssid = document.getElementById('sta_ssid_new').value.trim();
+    var password = document.getElementById('sta_password_new').value.trim();
+    if (!ssid) { showResult('result_sta', '请输入SSID'); return; }
+    apiFetch('/api/set_sta_ssid_password?ssid=' + encodeURIComponent(ssid) + '&password=' + encodeURIComponent(password), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_sta', '设置STA配置: ' + data))
+        .catch(err => showResult('result_sta', '请求失败: ' + err.toString()));
+}
+function setStaTimeout() {
+    var val = document.getElementById('sta_timeout_new').value.trim();
+    if (!val) { showResult('result_sta', '请输入数值'); return; }
+    apiFetch('/api/set_sta_timeout?value=' + encodeURIComponent(val), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_sta', '设置STA超时: ' + data))
+        .catch(err => showResult('result_sta', '请求失败: ' + err.toString()));
+}
+function getStaTimeout() {
+    apiFetch('/api/get_sta_timeout')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('sta_timeout_new').value = data.value || 60;
+        })
+        .catch(err => console.error('获取STA超时失败:', err));
+}
+
+// ============================================================
+// UDP 设置
+// ============================================================
+function setUdpRecvPort() {
+    var port = document.getElementById('udp_recv_port_new').value.trim();
+    if (!port) { showResult('result_udp', '请输入端口号'); return; }
+    apiFetch('/api/set_udp_recv_port?port=' + encodeURIComponent(port), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_udp', '设置接收端口: ' + data))
+        .catch(err => showResult('result_udp', '请求失败: ' + err.toString()));
+}
+function setUdpBroadcastPort() {
+    var port = document.getElementById('udp_broadcast_port_new').value.trim();
+    if (!port) { showResult('result_udp', '请输入端口号'); return; }
+    apiFetch('/api/set_udp_broadcast_port?port=' + encodeURIComponent(port), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_udp', '设置目标端口: ' + data))
+        .catch(err => showResult('result_udp', '请求失败: ' + err.toString()));
+}
+function setPollInterval() {
+    var interval = document.getElementById('poll_interval_new').value.trim();
+    if (!interval) { showResult('result_udp', '请输入间隔'); return; }
+    apiFetch('/api/set_udp_poll_interval?interval=' + encodeURIComponent(interval), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_udp', '设置轮询间隔: ' + data))
+        .catch(err => showResult('result_udp', '请求失败: ' + err.toString()));
+}
+function getUdpRecvPort() {
+    apiFetch('/api/get_udp_recv_port')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('udp_recv_port_new').value = data.value;
+        })
+        .catch(err => console.error('获取UDP接收端口失败:', err));
+}
+function getUdpBroadcastPort() {
+    apiFetch('/api/get_udp_broadcast_port')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('udp_broadcast_port_new').value = data.value;
+        })
+        .catch(err => console.error('获取UDP目标端口失败:', err));
+}
+function getPollInterval() {
+    apiFetch('/api/get_udp_poll_interval')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('poll_interval_new').value = data.interval || 5000;
+        })
+        .catch(err => console.error('获取轮询间隔失败:', err));
+}
+
+// ============================================================
+// 系统设置
+// ============================================================
+function setSelfNickname() {
+    var nickname = document.getElementById('self_nickname_input').value.trim();
+    if (!nickname) {
+        showResult('result_system', '请输入新昵称');
+        return;
+    }
+    apiFetch('/api/set_self_nickname', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nickname })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_system', '修改本机昵称: ' + data);
+        getSelfNickname();
+    })
+    .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+function getSelfNickname() {
+    apiFetch('/api/get_self_mac')
+        .then(res => res.json())
+        .then(data => {
+            var mac = data.mac || '';
+            if (!mac) {
+                document.getElementById('selfNicknameDisplay').textContent = '无法获取MAC';
+                return;
+            }
+            apiFetch('/api/get_nicknames')
+                .then(res => res.json())
+                .then(nicks => {
+                    var nick = nicks[mac] || '未设置';
+                    document.getElementById('selfNicknameDisplay').textContent = '当前昵称: ' + nick;
+                    document.getElementById('self_nickname_input').value = nick !== '未设置' ? nick : '';
+                })
+                .catch(() => {
+                    document.getElementById('selfNicknameDisplay').textContent = '获取昵称失败';
+                });
+        })
+        .catch(() => {
+            document.getElementById('selfNicknameDisplay').textContent = '获取MAC失败';
+        });
+}
+function getLedPin() {
+    apiFetch('/api/get_led_pin')
+        .then(res => res.json())
+        .then(data => {
+            var pin = data.pin || '';
+            document.getElementById('led_pin_new').value = pin;
+            document.getElementById('ledPinDisplay').textContent = '当前引脚: GPIO' + (pin || '-');
+        })
+        .catch(err => {
+            document.getElementById('ledPinDisplay').textContent = '获取失败';
+        });
+}
+function setLedPin() {
+    var pin = document.getElementById('led_pin_new').value.trim();
+    if (!pin) { showResult('result_system', '请输入引脚号'); return; }
+    apiFetch('/api/set_led_pin?pin=' + encodeURIComponent(pin), { method: 'POST' })
+        .then(res => res.text())
+        .then(data => {
+            showResult('result_system', '修改LED引脚: ' + data);
+            getLedPin();
+        })
+        .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+// ----- 重置引脚配置 -----
+function setResetPin() {
+    var pin = document.getElementById('reset_pin_new').value.trim();
+    if (!pin) { showResult('result_system', '请输入引脚号'); return; }
+    apiFetch('/api/set_reset_pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: parseInt(pin) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_system', '设置重置引脚: ' + data);
+        getResetStatus();
+    })
+    .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+
+function setResetHoldTime() {
+    var seconds = document.getElementById('reset_hold_time_new').value.trim();
+    if (!seconds) { showResult('result_system', '请输入秒数'); return; }
+    apiFetch('/api/set_reset_hold_time', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ seconds: parseInt(seconds) })
+    })
+    .then(res => res.text())
+    .then(data => {
+        showResult('result_system', '设置保持时间: ' + data);
+        getResetStatus();
+    })
+    .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+
+function getResetStatus() {
+    apiFetch('/api/get_reset_status')
+        .then(res => res.json())
+        .then(data => {
+            var pin = data.pin || '未设置';
+            var time = data.hold_time || '未设置';
+            document.getElementById('reset_pin_new').value = pin;
+            document.getElementById('reset_hold_time_new').value = time;
+            document.getElementById('resetStatusDisplay').textContent = '当前引脚: GPIO' + pin + ', 保持时间: ' + time + ' 秒';
+        })
+        .catch(err => {
+            document.getElementById('resetStatusDisplay').textContent = '获取失败';
+        });
+}
+function rebootDevice() {
+    if (!confirm('确定要重启设备吗？')) return;
+    apiFetch('/api/reboot', { method: 'POST' })
+        .then(res => res.text())
+        .then(data => showResult('result_system', '重启: ' + data))
+        .catch(err => showResult('result_system', '请求失败: ' + err.toString()));
+}
+
+// ============================================================
+// 初始化 - 仅恢复 IP，不自动刷新任何数据
+// ============================================================
+// 页面加载时不自动调用任何 API 请求，避免卡死
+</script>
+</body>
+</html>
