@@ -194,16 +194,16 @@ API_CATALOG = {
 }
 
 # 生成 commands/ 目录
-os.makedirs('../PublicModule/commands', exist_ok=True)
+os.makedirs('PublicModule/commands', exist_ok=True)
 for module, cmds in DEFAULT_COMMANDS['commands'].items():
-    with open(f'../PublicModule/commands/{module}.json', 'w', encoding="utf-8") as f:
+    with open(f'PublicModule/commands/{module}.json', 'w', encoding="utf-8") as f:
         json.dump(cmds, f, indent=2)
     print(f'生成 commands/{module}.json')
 
 # 生成 api_catalog/ 目录
-os.makedirs('../PublicModule/api_catalog', exist_ok=True)
+os.makedirs('PublicModule/api_catalog', exist_ok=True)
 for api_type, apis in API_CATALOG.items():
-    with open(f'../PublicModule/api_catalog/{api_type}.json', 'w', encoding="utf-8") as f:
+    with open(f'PublicModule/api_catalog/{api_type}.json', 'w', encoding="utf-8") as f:
         json.dump(apis, f, indent=2)
     print(f'生成 api_catalog/{api_type}.json')
 

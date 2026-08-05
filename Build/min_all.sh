@@ -73,14 +73,6 @@ compress_assets "client" "Build/client"
 # 6. 清理构建目录中的 __pycache__
 find "Build/server" "Build/client" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 
-# 7. 额外将生成的 commands/api_catalog 复制到 Build/server 和 Build/client（确保最新）
-# 其实已经通过复制源目录获得了，但为保险再复制一次（覆盖）
-echo ">>> 确保 Build 中有最新的 commands 和 api_catalog"
-cp -r PublicModule/commands Build/server/ 2>/dev/null || true
-cp -r PublicModule/api_catalog Build/server/ 2>/dev/null || true
-cp -r PublicModule/commands Build/client/ 2>/dev/null || true
-cp -r PublicModule/api_catalog Build/client/ 2>/dev/null || true
-
 echo "=== 构建完成 ==="
 echo "源文件 server_flip 和 client 未被修改（除同步 PublicModule 外）"
 echo "构建产物位于 Build/server 和 Build/client"
