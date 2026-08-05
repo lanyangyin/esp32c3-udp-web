@@ -90,27 +90,26 @@
    esptool.py --chip esp32c3 --port /dev/ttyUSB0 erase_flash
    esptool.py --chip esp32c3 --port /dev/ttyUSB0 --baud 460800 write_flash -z 0x0 firmware.bin
 
-3. 使用 rshell 或 ampy 将本项目所有 .py 文件上传到设备文件系统根目录（/）。
-   · 必须上传的文件：app.py, main.py, boot.py, config.py, constants.py, util.py, wifi.py, udp.py, udp_sender.py, udp_handlers.py, fragment_protocol.py, neighbor.py, route.py, loader.py, led.py, servo_control.py, servo_commands.py, ir05t.py, ir_commands.py, 以及各个 *_commands.py。
-   · 若有 web/ 目录（包含 webui.html 等），一并上传。
+3. 将本项目所有 .py 文件上传到设备文件系统根目录（/）。
+   - 服务端上传[Build/server](Build/server)中的所有文件。
+   - 客户端上传[Build/client](Build/client)中的所有文件。
 4. 复位设备，等待 AP 热点出现（默认 SSID 类似 ESP32-C3-Setup-XXXXX，无密码）。
 
 ### 2. 首次启动与配置
 
-· 连接设备 AP 热点（Wi-Fi 密码为空）。
-· 在浏览器访问 [Web 控制台](https://lanyangyin.github.io/esp32c3-udp-web/WEBUI/webui.html)，进入。
-· 页面加载后，点击顶部“连接”按钮（默认 IP 填网关），状态变为“已连接”。
-· 进行必要配置：
-  · STA 设置：输入家庭/实验室 Wi-Fi SSID 和密码，保存后设备会自动连接（LED 常亮表示成功）。
-  · AP 设置：可修改 AP SSID、密码、IP 网段等。
-  · 昵称：为设备设置一个易识别的昵称（用于邻居发现）。
-  · UDP 端口：可更改接收/发送端口（需重启）。
+- 连接设备 AP 热点（Wi-Fi 密码为空）。
+- 在浏览器访问 [Web 控制台](https://lanyangyin.github.io/esp32c3-udp-web/WEBUI/webui.html)，进入。
+- 页面加载后，点击顶部“连接”按钮（默认 IP 填网关），状态变为“已连接”。
+- 进行必要配置：
+- STA 设置：输入家庭 2.4g Wi-Fi SSID 和密码，保存后设备会自动连接（LED 常亮表示成功）。
+- AP 设置：可修改 AP SSID、密码、IP 网段等。
+- 昵称：为设备设置一个易识别的昵称（用于邻居发现）。
 
 ### 3. 连接设备
 
-· 通过 AP 热点：设备未连接 STA 时，仍可通过 AP 热点访问 Web 和 UDP 命令。
-· 通过 STA 网络：设备连接 STA 后，会同时获得 AP 和 STA 两个 IP，均可访问。
-· UDP 命令测试：使用 netcat 或 Python 脚本发送命令到设备 UDP 端口（默认 8888）例如：
+- 通过 AP 热点：设备未连接 STA 时，仍可通过 AP 热点访问 Web 和 UDP 命令。
+- 通过 STA 网络：设备连接 STA 后，会同时获得 AP 和 STA 两个 IP，均可访问。
+- UDP 命令测试：使用 netcat 或 Python 脚本发送命令到设备 UDP 端口（默认 8888）例如：
   ```bash
   echo "hello" | nc -u 192.168.4.1 8888
   ```
@@ -124,15 +123,15 @@
 
 Web 界面提供以下功能（通过顶部导航切换）：
 
-* · 主页：显示系统状态（AP/STA 信息、LED 引脚、内存、MAC 等），可扫描连接设备、查看昵称。
-* · 广播：发送 UDP 广播（可分别针对 AP、STA 或双网段），查看收到的 UDP 消息。
-* · 单播：向指定 IP 尾号（AP/STA 网段）、完整 IP 或设备昵称发送 UDP 消息；也可发送路由消息（指定目标 MAC）。
-* · 邻居表：查看已发现的邻居设备（MAC、IP、TTL），设置邻居广播间隔，管理昵称。
-* · 路由表：查看多跳路由表（含跃距、源 MAC），设置路由通告间隔，删除路由。
-* · AP 设置：修改 AP SSID/密码、网段，重置 AP 配置。
-* · STA 设置：修改 STA SSID/密码、连接超时。
-* · UDP 设置：修改接收/目标端口、消息轮询间隔。
-* · 系统设置：修改本机昵称、LED 引脚、重置引脚配置，重启设备。
+- 主页：显示系统状态（AP/STA 信息、LED 引脚、内存、MAC 等），可扫描连接设备、查看昵称。
+- 广播：发送 UDP 广播（可分别针对 AP、STA 或双网段），查看收到的 UDP 消息。
+- 单播：向指定 IP 尾号（AP/STA 网段）、完整 IP 或设备昵称发送 UDP 消息；也可发送路由消息（指定目标 MAC）。
+- 邻居表：查看已发现的邻居设备（MAC、IP、TTL），设置邻居广播间隔，管理昵称。
+- 路由表：查看多跳路由表（含跃距、源 MAC），设置路由通告间隔，删除路由。
+- AP 设置：修改 AP SSID/密码、网段，重置 AP 配置。
+- STA 设置：修改 STA SSID/密码、连接超时。
+- UDP 设置：修改接收/目标端口、消息轮询间隔。
+- 系统设置：修改本机昵称、LED 引脚、重置引脚配置，重启设备。
 
 ### UDP 命令协议
 
@@ -140,10 +139,10 @@ Web 界面提供以下功能（通过顶部导航切换）：
 
 内置命令（无需模块前缀）：
 
-* · hello / hi：回复问候语。
-* · help：显示所有可用命令（需配置文件支持）。
-* · status：显示当前网络、邻居、路由等状态。
-* · memory：显示内存使用情况。
+- hello / hi：回复问候语。
+- help：显示所有可用命令（需配置文件支持）。
+- status：显示当前网络、邻居、路由等状态。
+- memory：显示内存使用情况。
 
 模块命令示例：
 
@@ -173,9 +172,9 @@ ir05t| send| <设备名>,<数据名>| 发射已保存的红外码
 
 ### 邻居发现与路由
 
-* · 邻居发现：设备每隔 g_neighbor_advertise_interval（默认 20 秒）在 AP 和 STA 网段广播“邻居请求回复”消息，携带本机昵称。收到回复的设备将其加入邻居表（TTL=2，每周期减 1，归零则移除）。
-* · 路由表：设备每隔 g_route_advertise_interval（默认 90 秒）在 STA 网段广播“路由通告”，包含自身可达的设备列表（MAC、距离、昵称、来源）。收到通告的设备更新路由表（距离+1），并保存昵称。
-* · 消息转发：当发送方指定目标 MAC 且本机不是目标时，设备会查询邻居表或路由表，将消息转发给下一跳，实现多跳通信。
+- 邻居发现：设备每隔 g_neighbor_advertise_interval（默认 20 秒）在 AP 和 STA 网段广播“邻居请求回复”消息，携带本机昵称。收到回复的设备将其加入邻居表（TTL=2，每周期减 1，归零则移除）。
+- 路由表：设备每隔 g_route_advertise_interval（默认 90 秒）在 STA 网段广播“路由通告”，包含自身可达的设备列表（MAC、距离、昵称、来源）。收到通告的设备更新路由表（距离+1），并保存昵称。
+- 消息转发：当发送方指定目标 MAC 且本机不是目标时，设备会查询邻居表或路由表，将消息转发给下一跳，实现多跳通信。
 
 ---
 
@@ -184,8 +183,8 @@ ir05t| send| <设备名>,<数据名>| 发射已保存的红外码
 ### 添加舵机
 
 * 在 Web 界面中，进入“AP设置”或“系统设置”无关，直接使用 UDP 命令或 Web API 添加：
-  * · 命令：servo,set_pin,my_servo,GPIO14
-  * · 配置将保存在 servo-config.json 中。
+  - 命令：servo,set_pin,my_servo,GPIO14
+  - 配置将保存在 servo-config.json 中。
 * 设置初始角度：servo,set_init_angle,my_servo,90
 * 控制：servo,set,my_servo,45
 * 录制动作组：servo,record,my_servo,wave,0,45,90,45,0
@@ -238,9 +237,9 @@ A：确保设备已正确烧录固件并上传所有 Python 文件。检查串�
 
 Q：Web 界面无法加载或卡死？<br>
 A：可能原因：
-* · 设备内存不足，尝试重启并减少同时打开的功能。
-* · 浏览器跨域问题，确保访问的 IP 与设备 IP 一致。
-* · 检查设备是否处于 AP 模式且 IP 为 192.168.4.1。
+- 设备内存不足，尝试重启并减少同时打开的功能。
+- 浏览器跨域问题，确保访问的 IP 与设备 IP 一致。
+- 检查设备是否处于 AP 模式且 IP 为 192.168.4.1。
 
 Q：UDP 命令无响应？<br>
 A：检查目标端口是否正确（默认 8888），确保发送方 IP 在设备同一子网。可先尝试 hello 命令测试连通性。
@@ -261,9 +260,9 @@ A：通过串口工具（如 Putty、screen）连接，波特率 115200，可看
 
 ## 开发与贡献
 
-* · 代码结构：所有功能模块按职责划分，核心网络和配置在 config.py、wifi.py、udp*.py，硬件驱动在 led.py、servo_control.py、ir05t.py，业务命令在 *_commands.py。
-* · 扩展建议：新增硬件支持时，遵循“驱动 + 命令处理 + Web API”三层结构，保持代码解耦。
-* · 贡献指南：欢迎提交 Issue 和 Pull Request，请确保代码风格一致（PEP8 可适度调整）并附带测试。
+- 代码结构：所有功能模块按职责划分，核心网络和配置在 config.py、wifi.py、udp*.py，硬件驱动在 led.py、servo_control.py、ir05t.py，业务命令在 *_commands.py。
+- 扩展建议：新增硬件支持时，遵循“驱动 + 命令处理 + Web API”三层结构，保持代码解耦。
+- 贡献指南：欢迎提交 Issue 和 Pull Request，请确保代码风格一致（PEP8 可适度调整）并附带测试。
 
 ---
 
