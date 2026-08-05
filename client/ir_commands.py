@@ -215,7 +215,7 @@ def handle_ir05t_command(parts):
     if subcmd == "learn" and (len(parts) == 3 or (len(parts) == 4 and parts[3].lower() != "save")):
         data = obj.learn()
         if data:
-            return f"学习成功， {data.hex()} "
+            return f"学习成功， {data.hex().upper()} "
             # return f"学习成功，数据长度 {len(data)} 字节"
         else:
             return "学习失败（超时或无信号）"
